@@ -1,6 +1,6 @@
-# [PROJECT_NAME]
+# [Aerospike Client Java Metrics Exporter]
 
-> **Note:** This is a template repository. When creating a new repository from this template, run `./setup.sh` to configure it for your project. See [SETUP.md](SETUP.md) for details.
+> WIP - New project for exporting Aerospike client side metrics.
 
 <!-- Brief description of what your project does -->
 
