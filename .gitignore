@@ -63,7 +63,11 @@ temp/
 .metadata
 bin/
 target/
+.m2/
 .gradle/
+.idea/
+*.iml
+.vscode
 
 # Trunk
 .trunk/out/

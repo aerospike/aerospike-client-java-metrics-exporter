@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Aerospike client metrics
+    orgId: 1
+    folder: Aerospike
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
