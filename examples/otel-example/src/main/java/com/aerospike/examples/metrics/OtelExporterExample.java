@@ -6,6 +6,7 @@
 package com.aerospike.examples.metrics;
 
 import java.nio.file.Paths;
+import java.util.Collections;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Host;
@@ -24,6 +25,7 @@ public final class OtelExporterExample {
             .build();
 
         MetricsPolicy metricsPolicy = new MetricsPolicy();
+        metricsPolicy.labels = Collections.singletonMap("client_id", "primary");
         metricsPolicy.addExporter(exporter);
 
         AerospikeClient client = new AerospikeClient(

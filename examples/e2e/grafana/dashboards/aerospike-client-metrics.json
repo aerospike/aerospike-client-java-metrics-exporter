@@ -23,9 +23,9 @@
       "id": 2,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "aerospike_client_total_nodes{job=~\"$job\"}", "legendFormat": "nodes · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "aerospike_client_open_connections{job=~\"$job\"}", "legendFormat": "open connections · {{job}}", "refId": "B"},
-        {"editorMode": "code", "expr": "aerospike_client_recover_queue_size{job=~\"$job\"}", "legendFormat": "recover queue · {{job}}", "refId": "C"}
+        {"editorMode": "code", "expr": "aerospike_client_total_nodes{job=~\"$job\"}", "legendFormat": "nodes · {{client_id}} · {{job}}", "refId": "A"},
+        {"editorMode": "code", "expr": "aerospike_client_open_connections{job=~\"$job\"}", "legendFormat": "open connections · {{client_id}} · {{job}}", "refId": "B"},
+        {"editorMode": "code", "expr": "aerospike_client_recover_queue_size{job=~\"$job\"}", "legendFormat": "recover queue · {{client_id}} · {{job}}", "refId": "C"}
       ],
       "title": "Global gauges",
       "type": "timeseries"
@@ -38,12 +38,12 @@
       "id": 3,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "rate(aerospike_client_invalid_node_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "invalid nodes · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_retry_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "retries · {{job}}", "refId": "B"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_delay_queue_timeout_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "delay queue timeouts · {{job}}", "refId": "C"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_max_retries_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded max retries · {{job}}", "refId": "D"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_total_timeout_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded total timeout · {{job}}", "refId": "E"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_timeout_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded total timeout · {{job}}", "refId": "F"}
+        {"editorMode": "code", "expr": "rate(aerospike_client_invalid_node_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "invalid nodes · {{client_id}} · {{job}}", "refId": "A"},
+        {"editorMode": "code", "expr": "rate(aerospike_client_retry_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "retries · {{client_id}} · {{job}}", "refId": "B"},
+        {"editorMode": "code", "expr": "rate(aerospike_client_delay_queue_timeout_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "delay queue timeouts · {{client_id}} · {{job}}", "refId": "C"},
+        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_max_retries_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded max retries · {{client_id}} · {{job}}", "refId": "D"},
+        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_total_timeout_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded total timeout · {{client_id}} · {{job}}", "refId": "E"},
+        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_timeout_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded total timeout · {{client_id}} · {{job}}", "refId": "F"}
       ],
       "title": "Global event rates",
       "type": "timeseries"
@@ -56,8 +56,8 @@
       "id": 4,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "sum by (job, connection_type) (aerospike_client_node_connections_in_use{job=~\"$job\"})", "legendFormat": "in use · {{connection_type}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, connection_type) (aerospike_client_node_connections_in_pool{job=~\"$job\"})", "legendFormat": "in pool · {{connection_type}} · {{job}}", "refId": "B"}
+        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (aerospike_client_node_connections_in_use{job=~\"$job\"})", "legendFormat": "in use · {{conn_type}} · {{client_id}} · {{job}}", "refId": "A"},
+        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (aerospike_client_node_connections_in_pool{job=~\"$job\"})", "legendFormat": "in pool · {{conn_type}} · {{client_id}} · {{job}}", "refId": "B"}
       ],
       "title": "Node connection gauges",
       "type": "timeseries"
@@ -70,8 +70,8 @@
       "id": 5,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "sum by (job, connection_type) (rate(aerospike_client_node_connections_opened_total{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "opened · {{connection_type}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, connection_type) (rate(aerospike_client_node_connections_closed_total{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "closed · {{connection_type}} · {{job}}", "refId": "B"}
+        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (rate(aerospike_client_node_connections_opened_total{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "opened · {{conn_type}} · {{client_id}} · {{job}}", "refId": "A"},
+        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (rate(aerospike_client_node_connections_closed_total{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "closed · {{conn_type}} · {{client_id}} · {{job}}", "refId": "B"}
       ],
       "title": "Node connection churn",
       "type": "timeseries"
@@ -92,7 +92,7 @@
       "id": 7,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "aerospike_client_cpu_percent{job=~\"$job\"}", "legendFormat": "{{job}}", "refId": "A"}
+        {"editorMode": "code", "expr": "aerospike_client_cpu_percent{job=~\"$job\"}", "legendFormat": "{{client_id}} · {{job}}", "refId": "A"}
       ],
       "title": "Process CPU",
       "type": "timeseries"
@@ -105,7 +105,7 @@
       "id": 8,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "aerospike_client_memory_bytes{job=~\"$job\"}", "legendFormat": "{{job}}", "refId": "A"}
+        {"editorMode": "code", "expr": "aerospike_client_memory_bytes{job=~\"$job\"}", "legendFormat": "{{client_id}} · {{job}}", "refId": "A"}
       ],
       "title": "Process memory",
       "type": "timeseries"
@@ -118,7 +118,7 @@
       "id": 9,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "rate(aerospike_client_command_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "{{job}}", "refId": "A"}
+        {"editorMode": "code", "expr": "rate(aerospike_client_command_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "{{client_id}} · {{job}}", "refId": "A"}
       ],
       "title": "Client command rate",
       "type": "timeseries"
@@ -131,9 +131,9 @@
       "id": 10,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "sum by (job, namespace) (rate(aerospike_client_namespace_errors_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "errors · {{namespace}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, namespace) (rate(aerospike_client_namespace_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "timeouts · {{namespace}} · {{job}}", "refId": "B"},
-        {"editorMode": "code", "expr": "sum by (job, namespace) (rate(aerospike_client_namespace_key_busy_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "key busy · {{namespace}} · {{job}}", "refId": "C"}
+        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_errors_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "errors · {{namespace}} · {{client_id}} · {{job}}", "refId": "A"},
+        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "timeouts · {{namespace}} · {{client_id}} · {{job}}", "refId": "B"},
+        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_key_busy_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "key busy · {{namespace}} · {{client_id}} · {{job}}", "refId": "C"}
       ],
       "title": "Namespace outcome rates",
       "type": "timeseries"
@@ -146,8 +146,8 @@
       "id": 11,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "sum by (job, namespace) (rate(aerospike_client_namespace_bytes_in_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "in · {{namespace}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, namespace) (rate(aerospike_client_namespace_bytes_out_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "out · {{namespace}} · {{job}}", "refId": "B"}
+        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_bytes_in_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "in · {{namespace}} · {{client_id}} · {{job}}", "refId": "A"},
+        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_bytes_out_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "out · {{namespace}} · {{client_id}} · {{job}}", "refId": "B"}
       ],
       "title": "Namespace throughput",
       "type": "timeseries"
@@ -168,11 +168,11 @@
       "id": 13,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (namespace, le) (rate(aerospike_client_namespace_latency_conn_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "conn · {{namespace}}", "refId": "A"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (namespace, le) (rate(aerospike_client_namespace_latency_write_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "write · {{namespace}}", "refId": "B"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (namespace, le) (rate(aerospike_client_namespace_latency_read_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "read · {{namespace}}", "refId": "C"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (namespace, le) (rate(aerospike_client_namespace_latency_batch_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "batch · {{namespace}}", "refId": "D"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (namespace, le) (rate(aerospike_client_namespace_latency_query_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "query · {{namespace}}", "refId": "E"}
+        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_conn_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "conn · {{namespace}} · {{client_id}}", "refId": "A"},
+        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_write_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "write · {{namespace}} · {{client_id}}", "refId": "B"},
+        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_read_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "read · {{namespace}} · {{client_id}}", "refId": "C"},
+        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_batch_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "batch · {{namespace}} · {{client_id}}", "refId": "D"},
+        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_query_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "query · {{namespace}} · {{client_id}}", "refId": "E"}
       ],
       "title": "P95 latency by operation",
       "type": "timeseries"
@@ -185,11 +185,11 @@
       "id": 14,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "sum by (namespace) (rate(aerospike_client_namespace_latency_conn_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "conn · {{namespace}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (namespace) (rate(aerospike_client_namespace_latency_write_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "write · {{namespace}}", "refId": "B"},
-        {"editorMode": "code", "expr": "sum by (namespace) (rate(aerospike_client_namespace_latency_read_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "read · {{namespace}}", "refId": "C"},
-        {"editorMode": "code", "expr": "sum by (namespace) (rate(aerospike_client_namespace_latency_batch_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "batch · {{namespace}}", "refId": "D"},
-        {"editorMode": "code", "expr": "sum by (namespace) (rate(aerospike_client_namespace_latency_query_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "query · {{namespace}}", "refId": "E"}
+        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_conn_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "conn · {{namespace}} · {{client_id}}", "refId": "A"},
+        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_write_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "write · {{namespace}} · {{client_id}}", "refId": "B"},
+        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_read_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "read · {{namespace}} · {{client_id}}", "refId": "C"},
+        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_batch_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "batch · {{namespace}} · {{client_id}}", "refId": "D"},
+        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_query_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "query · {{namespace}} · {{client_id}}", "refId": "E"}
       ],
       "title": "Latency histogram observation rates",
       "type": "timeseries"

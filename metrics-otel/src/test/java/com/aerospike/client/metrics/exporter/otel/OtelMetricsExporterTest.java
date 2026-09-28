@@ -66,6 +66,63 @@ class OtelMetricsExporterTest {
     }
 
     @Test
+    void exportsIndependentMeasurementsForClientsSharingOneExporter() {
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        SdkMeterProvider provider = SdkMeterProvider.builder()
+            .registerMetricReader(reader)
+            .build();
+        OpenTelemetrySdk openTelemetry = OpenTelemetrySdk.builder()
+            .setMeterProvider(provider)
+            .build();
+
+        OtelMetricsExporter exporter = OtelMetricsExporter.builder()
+            .openTelemetry(openTelemetry)
+            .snapshotStaleTimeout("5m")
+            .build();
+        try {
+            exporter.export(snapshot(true, "primary", 2));
+            exporter.export(snapshot(true, "reporting", 4));
+
+            MetricData nodes = metric(
+                reader.collectAllMetrics(),
+                "aerospike_client_total_nodes"
+            );
+            Map<String, Long> values = new LinkedHashMap<String, Long>();
+            for (LongPointData point : nodes.getLongGaugeData().getPoints()) {
+                values.put(
+                    point.getAttributes().get(AttributeKey.stringKey("client_id")),
+                    point.getValue()
+                );
+            }
+
+            assertEquals(2, values.size());
+            assertEquals(2L, values.get("primary"));
+            assertEquals(4L, values.get("reporting"));
+            assertEquals(2, exporter.snapshotRegistry().size());
+        }
+        finally {
+            exporter.close();
+            provider.close();
+        }
+    }
+
+    @Test
+    void rejectsSnapshotsWithoutClientId() {
+        OtelMetricsExporter exporter = OtelMetricsExporter.builder()
+            .openTelemetry(OpenTelemetrySdk.builder().build())
+            .build();
+        try {
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> exporter.export(snapshot(false, null, 2))
+            );
+        }
+        finally {
+            exporter.close();
+        }
+    }
+
+    @Test
     void suppressesExtendedMetricsWhenClientDidNotCollectThem() {
         InMemoryMetricReader reader = InMemoryMetricReader.create();
         SdkMeterProvider provider = SdkMeterProvider.builder()
@@ -150,6 +207,14 @@ class OtelMetricsExporterTest {
     }
 
     private static MetricsSnapshot snapshot(boolean extended) {
+        return snapshot(extended, "primary", 2);
+    }
+
+    private static MetricsSnapshot snapshot(
+            boolean extended,
+            String clientId,
+            int totalNodes
+    ) {
         MetricsSnapshot.ConnectionSnapshot sync =
             new MetricsSnapshot.ConnectionSnapshot(2, 3, 10, 5);
         MetricsSnapshot.ConnectionSnapshot async =
@@ -180,6 +245,12 @@ class OtelMetricsExporterTest {
             extended ? Collections.singletonList(namespace) : Collections.emptyList()
         );
 
+        Map<String, String> labels = new LinkedHashMap<String, String>();
+        labels.put("team", "payments");
+        if (clientId != null) {
+            labels.put("client_id", clientId);
+        }
+
         return new MetricsSnapshot(
             Instant.now(),
             extended,
@@ -187,12 +258,12 @@ class OtelMetricsExporterTest {
             "java",
             "10.4.0",
             "orders",
-            Collections.singletonMap("team", "payments"),
+            labels,
             3,
             1,
             8,
             2,
-            2,
+            totalNodes,
             7,
             4,
             3,

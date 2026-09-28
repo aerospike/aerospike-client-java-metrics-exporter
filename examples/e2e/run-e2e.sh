@@ -165,20 +165,42 @@ wait_for_metric \
   "direct Prometheus exporter metrics" \
   "http://localhost:9146/metrics" \
   "aerospike_client_total_nodes"
+wait_for_metric \
+  "direct primary client metrics" \
+  "http://localhost:9146/metrics" \
+  'client_id="primary"'
+wait_for_metric \
+  "direct reporting client metrics" \
+  "http://localhost:9146/metrics" \
+  'client_id="reporting"'
 echo "Verified direct Prometheus exporter flow"
 
 wait_for_metric \
   "OTel metrics exposed by the Collector" \
   "http://localhost:9464/metrics" \
   "aerospike_client_total_nodes"
+wait_for_metric \
+  "OTel primary client metrics" \
+  "http://localhost:9464/metrics" \
+  'client_id="primary"'
+wait_for_metric \
+  "OTel reporting client metrics" \
+  "http://localhost:9464/metrics" \
+  'client_id="reporting"'
 echo "Verified OTel exporter -> Collector flow"
 
 wait_for_prometheus_query \
   "direct Prometheus scrape" \
-  'aerospike_client_total_nodes{job="aerospike-client-direct"}'
+  'aerospike_client_total_nodes{job="aerospike-client-direct",client_id="primary"}'
+wait_for_prometheus_query \
+  "direct Prometheus reporting client scrape" \
+  'aerospike_client_total_nodes{job="aerospike-client-direct",client_id="reporting"}'
 wait_for_prometheus_query \
   "Collector Prometheus scrape" \
-  'aerospike_client_total_nodes{job="aerospike-client-via-otel"}'
+  'aerospike_client_total_nodes{job="aerospike-client-via-otel",client_id="primary"}'
+wait_for_prometheus_query \
+  "Collector Prometheus reporting client scrape" \
+  'aerospike_client_total_nodes{job="aerospike-client-via-otel",client_id="reporting"}'
 echo "Verified both Prometheus scrape jobs"
 
 if ! "${COMPOSE[@]}" logs otel-collector |

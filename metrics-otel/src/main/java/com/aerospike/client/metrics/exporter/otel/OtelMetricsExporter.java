@@ -33,9 +33,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.aerospike.client.metrics.IMetricsExporter;
 import com.aerospike.client.metrics.MetricsSnapshot;
+import com.aerospike.client.metrics.exporter.common.ClientSnapshotRegistry;
 import com.aerospike.client.metrics.exporter.common.MetricDescriptor;
 import com.aerospike.client.metrics.exporter.common.SnapshotAttributes;
-import com.aerospike.client.metrics.exporter.common.SnapshotStore;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -52,12 +52,16 @@ public final class OtelMetricsExporter implements IMetricsExporter {
     private static final String SYNC = "sync";
     private static final String ASYNC = "async";
 
-    private final SnapshotStore snapshots;
+    private final ClientSnapshotRegistry snapshots;
     private final SdkMeterProvider ownedMeterProvider;
     private final List<AutoCloseable> instruments = new ArrayList<AutoCloseable>();
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    OtelMetricsExporter(Meter meter, SnapshotStore snapshots, SdkMeterProvider ownedMeterProvider) {
+    OtelMetricsExporter(
+            Meter meter,
+            ClientSnapshotRegistry snapshots,
+            SdkMeterProvider ownedMeterProvider
+    ) {
         if (meter == null) {
             throw new IllegalArgumentException("meter must not be null");
         }
@@ -81,7 +85,7 @@ public final class OtelMetricsExporter implements IMetricsExporter {
         snapshots.update(snapshot);
     }
 
-    public SnapshotStore snapshotStore() {
+    public ClientSnapshotRegistry snapshotRegistry() {
         return snapshots;
     }
 
@@ -118,9 +122,13 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(CPU_PERCENT.description())
             .setUnit(CPU_PERCENT.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot != null && snapshot.extendedMetricsEnabled) {
-                    measurement.record(snapshot.cpuPercent, attributes(SnapshotAttributes.global(snapshot)));
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
+                    if (snapshot.extendedMetricsEnabled) {
+                        measurement.record(
+                            snapshot.cpuPercent,
+                            attributes(SnapshotAttributes.global(snapshot))
+                        );
+                    }
                 }
             });
         instruments.add(cpu);
@@ -150,8 +158,7 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(descriptor.description())
             .setUnit(descriptor.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot != null) {
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
                     measurement.record(value.read(snapshot), attributes(SnapshotAttributes.global(snapshot)));
                 }
             });
@@ -168,9 +175,13 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(descriptor.description())
             .setUnit(descriptor.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot != null && snapshot.extendedMetricsEnabled) {
-                    measurement.record(value.read(snapshot), attributes(SnapshotAttributes.global(snapshot)));
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
+                    if (snapshot.extendedMetricsEnabled) {
+                        measurement.record(
+                            value.read(snapshot),
+                            attributes(SnapshotAttributes.global(snapshot))
+                        );
+                    }
                 }
             });
         instruments.add(instrument);
@@ -185,8 +196,7 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(descriptor.description())
             .setUnit(descriptor.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot != null) {
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
                     measurement.record(value.read(snapshot), attributes(SnapshotAttributes.global(snapshot)));
                 }
             });
@@ -202,9 +212,13 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(descriptor.description())
             .setUnit(descriptor.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot != null && snapshot.extendedMetricsEnabled) {
-                    measurement.record(value.read(snapshot), attributes(SnapshotAttributes.global(snapshot)));
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
+                    if (snapshot.extendedMetricsEnabled) {
+                        measurement.record(
+                            value.read(snapshot),
+                            attributes(SnapshotAttributes.global(snapshot))
+                        );
+                    }
                 }
             });
         instruments.add(instrument);
@@ -216,19 +230,17 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(descriptor.description())
             .setUnit(descriptor.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot == null) {
-                    return;
-                }
-                for (MetricsSnapshot.NodeSnapshot node : snapshot.nodes) {
-                    measurement.record(
-                        inUse ? node.syncConnections.inUse : node.syncConnections.inPool,
-                        attributes(SnapshotAttributes.node(snapshot, node, SYNC))
-                    );
-                    measurement.record(
-                        inUse ? node.asyncConnections.inUse : node.asyncConnections.inPool,
-                        attributes(SnapshotAttributes.node(snapshot, node, ASYNC))
-                    );
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
+                    for (MetricsSnapshot.NodeSnapshot node : snapshot.nodes) {
+                        measurement.record(
+                            inUse ? node.syncConnections.inUse : node.syncConnections.inPool,
+                            attributes(SnapshotAttributes.node(snapshot, node, SYNC))
+                        );
+                        measurement.record(
+                            inUse ? node.asyncConnections.inUse : node.asyncConnections.inPool,
+                            attributes(SnapshotAttributes.node(snapshot, node, ASYNC))
+                        );
+                    }
                 }
             });
         instruments.add(instrument);
@@ -239,19 +251,17 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(descriptor.description())
             .setUnit(descriptor.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot == null) {
-                    return;
-                }
-                for (MetricsSnapshot.NodeSnapshot node : snapshot.nodes) {
-                    measurement.record(
-                        opened ? node.syncConnections.opened : node.syncConnections.closed,
-                        attributes(SnapshotAttributes.node(snapshot, node, SYNC))
-                    );
-                    measurement.record(
-                        opened ? node.asyncConnections.opened : node.asyncConnections.closed,
-                        attributes(SnapshotAttributes.node(snapshot, node, ASYNC))
-                    );
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
+                    for (MetricsSnapshot.NodeSnapshot node : snapshot.nodes) {
+                        measurement.record(
+                            opened ? node.syncConnections.opened : node.syncConnections.closed,
+                            attributes(SnapshotAttributes.node(snapshot, node, SYNC))
+                        );
+                        measurement.record(
+                            opened ? node.asyncConnections.opened : node.asyncConnections.closed,
+                            attributes(SnapshotAttributes.node(snapshot, node, ASYNC))
+                        );
+                    }
                 }
             });
         instruments.add(instrument);
@@ -266,16 +276,20 @@ public final class OtelMetricsExporter implements IMetricsExporter {
             .setDescription(descriptor.description())
             .setUnit(descriptor.unit())
             .buildWithCallback(measurement -> {
-                MetricsSnapshot snapshot = snapshots.currentIfFresh();
-                if (snapshot == null || !snapshot.extendedMetricsEnabled) {
-                    return;
-                }
-                for (MetricsSnapshot.NodeSnapshot node : snapshot.nodes) {
-                    for (MetricsSnapshot.NamespaceSnapshot namespace : node.namespaces) {
-                        measurement.record(
-                            value.read(namespace),
-                            attributes(SnapshotAttributes.namespace(snapshot, node, namespace))
-                        );
+                for (MetricsSnapshot snapshot : snapshots.currentSnapshots()) {
+                    if (snapshot.extendedMetricsEnabled) {
+                        for (MetricsSnapshot.NodeSnapshot node : snapshot.nodes) {
+                            for (MetricsSnapshot.NamespaceSnapshot namespace : node.namespaces) {
+                                measurement.record(
+                                    value.read(namespace),
+                                    attributes(SnapshotAttributes.namespace(
+                                        snapshot,
+                                        node,
+                                        namespace
+                                    ))
+                                );
+                            }
+                        }
                     }
                 }
             });

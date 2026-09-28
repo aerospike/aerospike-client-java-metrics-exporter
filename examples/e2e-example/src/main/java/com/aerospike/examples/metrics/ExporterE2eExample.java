@@ -46,8 +46,10 @@ public final class ExporterE2eExample {
             .fromYaml(configPath)
             .build();
         PrometheusMetricsExporter prometheusExporter = null;
-        AerospikeClient client = null;
-        boolean metricsEnabled = false;
+        AerospikeClient primaryClient = null;
+        AerospikeClient reportingClient = null;
+        boolean primaryMetricsEnabled = false;
+        boolean reportingMetricsEnabled = false;
 
         try {
             prometheusExporter = PrometheusMetricsExporter.builder()
@@ -56,30 +58,37 @@ public final class ExporterE2eExample {
 
             ClientPolicy clientPolicy = new ClientPolicy();
             clientPolicy.appId = "metrics-exporter-e2e";
-            client = new AerospikeClient(clientPolicy, new Host(host, port));
+            primaryClient = new AerospikeClient(clientPolicy, new Host(host, port));
+            reportingClient = new AerospikeClient(clientPolicy, new Host(host, port));
 
-            MetricsPolicy metricsPolicy = new MetricsPolicy();
-            metricsPolicy.interval = 1;
-            metricsPolicy.enableExtendedMetrics = true;
-            metricsPolicy.labels = labels();
-            metricsPolicy.addExporter(otelExporter);
-            metricsPolicy.addExporter(prometheusExporter);
-            client.enableMetrics(metricsPolicy);
-            metricsEnabled = true;
+            primaryClient.enableMetrics(
+                metricsPolicy("primary", otelExporter, prometheusExporter)
+            );
+            primaryMetricsEnabled = true;
+            reportingClient.enableMetrics(
+                metricsPolicy("reporting", otelExporter, prometheusExporter)
+            );
+            reportingMetricsEnabled = true;
 
-            System.out.println("E2E workload connected to " + host + ":" + port);
+            System.out.println("Two E2E clients connected to " + host + ":" + port);
             System.out.println("Direct Prometheus metrics: http://localhost:"
                 + prometheusExporter.port() + "/metrics");
             System.out.println("Running workload for " + duration.getSeconds() + " seconds");
-            runWorkload(client, namespace, duration);
+            runWorkload(primaryClient, reportingClient, namespace, duration);
             System.out.println("E2E workload completed");
         }
         finally {
-            if (client != null) {
-                if (metricsEnabled) {
-                    client.disableMetrics();
+            if (primaryClient != null) {
+                if (primaryMetricsEnabled) {
+                    primaryClient.disableMetrics();
                 }
-                client.close();
+                primaryClient.close();
+            }
+            if (reportingClient != null) {
+                if (reportingMetricsEnabled) {
+                    reportingClient.disableMetrics();
+                }
+                reportingClient.close();
             }
             if (prometheusExporter != null) {
                 prometheusExporter.close();
@@ -89,7 +98,8 @@ public final class ExporterE2eExample {
     }
 
     private static void runWorkload(
-            AerospikeClient client,
+            AerospikeClient primaryClient,
+            AerospikeClient reportingClient,
             String namespace,
             Duration duration
     ) throws InterruptedException {
@@ -99,20 +109,36 @@ public final class ExporterE2eExample {
         while (System.nanoTime() < deadline) {
             int keyId = sequence % 100;
             Key key = new Key(namespace, "metrics_e2e", keyId);
-            client.put(
+            primaryClient.put(
                 null,
                 key,
                 new Bin("sequence", sequence),
                 new Bin("source", "metrics-exporter-e2e")
             );
-            client.get(null, key);
+            primaryClient.get(null, key);
+            reportingClient.get(null, key);
             sequence++;
             TimeUnit.MILLISECONDS.sleep(20);
         }
     }
 
-    private static Map<String, String> labels() {
+    private static MetricsPolicy metricsPolicy(
+            String clientId,
+            OtelMetricsExporter otelExporter,
+            PrometheusMetricsExporter prometheusExporter
+    ) {
+        MetricsPolicy policy = new MetricsPolicy();
+        policy.interval = 1;
+        policy.enableExtendedMetrics = true;
+        policy.labels = labels(clientId);
+        policy.addExporter(otelExporter);
+        policy.addExporter(prometheusExporter);
+        return policy;
+    }
+
+    private static Map<String, String> labels(String clientId) {
         Map<String, String> labels = new LinkedHashMap<String, String>();
+        labels.put("client_id", clientId);
         labels.put("environment", "e2e");
         labels.put("export_test", "dual-backend");
         return labels;

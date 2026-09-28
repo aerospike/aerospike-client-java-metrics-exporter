@@ -41,27 +41,42 @@ second client implementation.
 
 ## Application setup
 
+Create one exporter per backend and share it across the process. Every client
+must supply a unique `client_id` through `MetricsPolicy.labels`; the exporter
+uses that existing snapshot label to keep each client's measurements separate.
+
 ```java
-OtelMetricsExporter exporter = OtelMetricsExporter.builder()
+OtelMetricsExporter sharedExporter = OtelMetricsExporter.builder()
     .endpoint("https://collector.example.com:4317")
     .protocol(OtelExporterConfig.Protocol.GRPC)
     .serviceName("orders-service")
     .build();
 
-MetricsPolicy policy = new MetricsPolicy();
-policy.addExporter(exporter);
-client.enableMetrics(policy);
+MetricsPolicy primaryPolicy = new MetricsPolicy();
+primaryPolicy.labels = Collections.singletonMap("client_id", "primary");
+primaryPolicy.addExporter(sharedExporter);
+
+MetricsPolicy reportingPolicy = new MetricsPolicy();
+reportingPolicy.labels = Collections.singletonMap("client_id", "reporting");
+reportingPolicy.addExporter(sharedExporter);
+
+primaryClient.enableMetrics(primaryPolicy);
+reportingClient.enableMetrics(reportingPolicy);
 
 try {
     // Application work.
 }
 finally {
-    client.disableMetrics();
-    exporter.close();
+    primaryClient.disableMetrics();
+    reportingClient.disableMetrics();
+    primaryClient.close();
+    reportingClient.close();
+    sharedExporter.close();
 }
 ```
 
-Prometheus setup differs only in construction:
+The same sharing and lifecycle apply to Prometheus; one exporter owns one
+registry, HTTP server, and port:
 
 ```java
 PrometheusMetricsExporter exporter = PrometheusMetricsExporter.builder()
@@ -79,6 +94,13 @@ OtelMetricsExporter exporter = OtelMetricsExporter.builder()
     .openTelemetry(openTelemetry)
     .build();
 ```
+
+Choose `client_id` values that are nonblank, unique per live Aerospike client,
+stable across disable/re-enable, and drawn from a bounded set. Do not generate a
+new value for every snapshot. A shared OTel exporter owns one meter/instrument
+pipeline, while a shared Prometheus exporter owns one scrape endpoint. Close a
+shared exporter only once, after every client using it has disabled metrics or
+closed.
 
 ## Configuration
 
@@ -167,7 +189,9 @@ initial stale timeout:     90s
 Use `snapshot_stale_timeout: auto` (default) or set a fixed duration such as
 `2m`. When stale, OTel observes nothing and Prometheus omits the series; neither
 backend publishes false zero values. The next snapshot automatically resumes
-export.
+export. Per-client stores are retained rather than periodically evicted, so a
+client that disables and later re-enables metrics with the same `client_id`
+reuses its store.
 
 ## Current schema baseline
 

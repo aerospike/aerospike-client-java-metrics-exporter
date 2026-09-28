@@ -61,6 +61,48 @@ class PrometheusMetricsExporterTest {
     }
 
     @Test
+    void servesMultipleClientsAndNormalizesOptionalLabels() throws Exception {
+        PrometheusMetricsExporter exporter = PrometheusMetricsExporter.builder()
+            .bindAddress("127.0.0.1")
+            .port(0)
+            .snapshotStaleTimeout("5m")
+            .build();
+        try {
+            exporter.export(snapshot(true, "primary", 2, true));
+            exporter.export(snapshot(true, "reporting", 4, false));
+
+            String body = body(connection(exporter, null));
+            assertTrue(body.contains("client_id=\"primary\""));
+            assertTrue(body.contains("client_id=\"reporting\""));
+            assertTrue(body.contains("region=\"us-east\""));
+            assertTrue(body.contains("region=\"\""));
+            assertTrue(body.contains(" 2.0") || body.contains(" 2"));
+            assertTrue(body.contains(" 4.0") || body.contains(" 4"));
+            assertEquals(2, exporter.snapshotRegistry().size());
+        }
+        finally {
+            exporter.close();
+        }
+    }
+
+    @Test
+    void rejectsSnapshotsWithoutClientId() {
+        PrometheusMetricsExporter exporter = PrometheusMetricsExporter.builder()
+            .bindAddress("127.0.0.1")
+            .port(0)
+            .build();
+        try {
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> exporter.export(snapshot(false, null, 2, false))
+            );
+        }
+        finally {
+            exporter.close();
+        }
+    }
+
+    @Test
     void requiresValidBasicAuthentication() throws Exception {
         PrometheusMetricsExporter exporter = PrometheusMetricsExporter.builder()
             .bindAddress("127.0.0.1")
@@ -138,6 +180,15 @@ class PrometheusMetricsExporterTest {
     }
 
     private static MetricsSnapshot snapshot(boolean extended) {
+        return snapshot(extended, "primary", 2, false);
+    }
+
+    private static MetricsSnapshot snapshot(
+            boolean extended,
+            String clientId,
+            int totalNodes,
+            boolean includeRegion
+    ) {
         MetricsSnapshot.ConnectionSnapshot sync =
             new MetricsSnapshot.ConnectionSnapshot(2, 3, 10, 5);
         MetricsSnapshot.ConnectionSnapshot async =
@@ -179,6 +230,15 @@ class PrometheusMetricsExporterTest {
             extended ? Collections.singletonList(namespace) : Collections.emptyList()
         );
 
+        Map<String, String> labels = new java.util.LinkedHashMap<String, String>();
+        labels.put("team", "payments");
+        if (clientId != null) {
+            labels.put("client_id", clientId);
+        }
+        if (includeRegion) {
+            labels.put("region", "us-east");
+        }
+
         return new MetricsSnapshot(
             Instant.now(),
             extended,
@@ -186,12 +246,12 @@ class PrometheusMetricsExporterTest {
             "java",
             "10.4.0",
             "orders",
-            Collections.singletonMap("team", "payments"),
+            labels,
             3,
             1,
             8,
             2,
-            2,
+            totalNodes,
             7,
             4,
             3,

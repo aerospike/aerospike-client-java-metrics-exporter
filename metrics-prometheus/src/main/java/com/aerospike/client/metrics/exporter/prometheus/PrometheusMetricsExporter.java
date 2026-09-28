@@ -29,7 +29,7 @@ import javax.net.ssl.SSLParameters;
 
 import com.aerospike.client.metrics.IMetricsExporter;
 import com.aerospike.client.metrics.MetricsSnapshot;
-import com.aerospike.client.metrics.exporter.common.SnapshotStore;
+import com.aerospike.client.metrics.exporter.common.ClientSnapshotRegistry;
 import com.aerospike.client.metrics.exporter.common.config.PemSupport;
 import com.aerospike.client.metrics.exporter.common.config.TlsConfig;
 import com.sun.net.httpserver.Headers;
@@ -50,7 +50,7 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
     private static final Logger LOGGER =
         Logger.getLogger(PrometheusMetricsExporter.class.getName());
 
-    private final SnapshotStore snapshots;
+    private final ClientSnapshotRegistry snapshots;
     private final CollectorRegistry registry;
     private final AerospikeSnapshotCollector collector;
     private final HttpServer server;
@@ -59,7 +59,7 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     PrometheusMetricsExporter(PrometheusExporterConfig config) {
-        this.snapshots = new SnapshotStore(config.freshness().createPolicy());
+        this.snapshots = new ClientSnapshotRegistry(config.freshness()::createPolicy);
         this.registry = new CollectorRegistry();
         this.collector = new AerospikeSnapshotCollector(snapshots);
         this.collector.register(registry);
@@ -91,7 +91,7 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
         return server.getAddress().getPort();
     }
 
-    public SnapshotStore snapshotStore() {
+    public ClientSnapshotRegistry snapshotRegistry() {
         return snapshots;
     }
 

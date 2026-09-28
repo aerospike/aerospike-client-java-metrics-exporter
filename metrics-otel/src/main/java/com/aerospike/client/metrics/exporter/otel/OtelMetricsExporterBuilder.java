@@ -18,7 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
-import com.aerospike.client.metrics.exporter.common.SnapshotStore;
+import com.aerospike.client.metrics.exporter.common.ClientSnapshotRegistry;
 import com.aerospike.client.metrics.exporter.common.config.ConfigMerger;
 import com.aerospike.client.metrics.exporter.common.config.ConfigValues;
 import com.aerospike.client.metrics.exporter.common.config.FreshnessConfig;
@@ -134,11 +134,13 @@ public final class OtelMetricsExporterBuilder {
 
     public OtelMetricsExporter build() {
         OtelExporterConfig config = resolveConfig();
-        SnapshotStore store = new SnapshotStore(config.freshness().createPolicy());
+        ClientSnapshotRegistry snapshots = new ClientSnapshotRegistry(
+            config.freshness()::createPolicy
+        );
 
         if (openTelemetry != null) {
             Meter meter = openTelemetry.getMeter(METER_NAME);
-            return new OtelMetricsExporter(meter, store, null);
+            return new OtelMetricsExporter(meter, snapshots, null);
         }
 
         MetricExporter metricExporter = buildMetricExporter(config);
@@ -157,7 +159,11 @@ public final class OtelMetricsExporterBuilder {
             .registerMetricReader(reader)
             .build();
 
-        return new OtelMetricsExporter(meterProvider.get(METER_NAME), store, meterProvider);
+        return new OtelMetricsExporter(
+            meterProvider.get(METER_NAME),
+            snapshots,
+            meterProvider
+        );
     }
 
     public OtelExporterConfig resolveConfig() {
