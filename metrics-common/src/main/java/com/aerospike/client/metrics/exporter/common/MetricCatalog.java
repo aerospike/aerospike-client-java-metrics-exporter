@@ -19,7 +19,6 @@ public final class MetricCatalog {
     private MetricCatalog() {
     }
 
-    //todo: verify no missing metrics
     public static final MetricDescriptor RECOVER_QUEUE_SIZE = gauge(
         "aerospike_client_recover_queue_size", "Connections waiting in the recovery queue", "{connections}", false);
     public static final MetricDescriptor INVALID_NODES = counter(
@@ -32,10 +31,18 @@ public final class MetricCatalog {
         "aerospike_client_total_nodes", "Current cluster node count", "{nodes}", false);
     public static final MetricDescriptor OPEN_CONNECTIONS = gauge(
         "aerospike_client_open_connections", "Current open connection count", "{connections}", false);
+    // TODO(client-java): MetricsSnapshotBuilder currently hard-codes both
+    // exceeded counters to zero. Populate them at terminal command failure
+    // before treating their exported zero values as supported observations.
     public static final MetricDescriptor EXCEEDED_MAX_RETRIES = counter(
         "aerospike_client_exceeded_max_retries", "Commands that exceeded max retries", "{commands}", false);
     public static final MetricDescriptor EXCEEDED_TOTAL_TIMEOUT = counter(
         "aerospike_client_exceeded_total_timeout", "Commands that exceeded total timeout", "{commands}", false);
+
+    public static final MetricDescriptor EVENT_LOOP_PROCESS_SIZE = gauge(
+        "aerospike_client_eventloop_process_size", "Commands processing on event loops", "{commands}", false);
+    public static final MetricDescriptor EVENT_LOOP_QUEUE_SIZE = gauge(
+        "aerospike_client_eventloop_queue_size", "Commands queued on event loops", "{commands}", false);
 
     public static final MetricDescriptor CPU_PERCENT = gauge(
         "aerospike_client_cpu_percent", "Client process CPU utilization", "%", true);
@@ -64,12 +71,33 @@ public final class MetricCatalog {
     public static final MetricDescriptor NAMESPACE_BYTES_OUT = counter(
         "aerospike_client_namespace_bytes_out", "Bytes sent for namespace operations", "By", true);
 
+    /**
+     * Build the descriptor for one client latency operation.
+     *
+     * @param operation stable operation name such as {@code read} or {@code write}
+     * @param unit snapshot latency unit
+     */
     public static MetricDescriptor latency(String operation, String unit) {
         return new MetricDescriptor(
             "aerospike_client_namespace_latency_" + operation,
             "Client-side " + operation + " latency",
             unit,
             HISTOGRAM,
+            true
+        );
+    }
+
+    /**
+     * Build the OTel counter descriptor for one compatibility latency bucket family.
+     *
+     * @param operation stable operation name such as {@code read} or {@code write}
+     */
+    public static MetricDescriptor latencyBucket(String operation) {
+        return new MetricDescriptor(
+            "aerospike_client_namespace_latency_" + operation + "_bucket",
+            "Cumulative client-side " + operation + " latency observations by upper bound",
+            "{operations}",
+            COUNTER,
             true
         );
     }

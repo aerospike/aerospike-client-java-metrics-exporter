@@ -24,6 +24,13 @@ public final class SecretResolver {
     private SecretResolver() {
     }
 
+    /**
+     * Resolve all {@code ${ENV_NAME}} placeholders, then load the result from
+     * disk when it starts with {@code file:}. File contents are trimmed to
+     * support newline-terminated secret mounts.
+     *
+     * @param value literal, environment-templated, or file-backed value
+     */
     public static String resolve(String value) {
         return resolve(value, System.getenv());
     }

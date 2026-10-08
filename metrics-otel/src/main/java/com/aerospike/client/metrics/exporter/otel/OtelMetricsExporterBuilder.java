@@ -9,6 +9,7 @@ import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -41,10 +42,23 @@ import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
 
+/**
+ * Builds an Aerospike snapshot exporter backed by OpenTelemetry metrics.
+ *
+ * <p>Explicit builder values have highest precedence, followed by JVM system
+ * properties, environment variables, YAML, and built-in defaults. If an
+ * {@link OpenTelemetry} instance is supplied, the application retains
+ * ownership of its provider. Otherwise this builder creates a provider and the
+ * resulting exporter closes it.</p>
+ */
 public final class OtelMetricsExporterBuilder {
     static final String PREFIX = "aerospike_metrics_exporter.";
     static final String OTEL = PREFIX + "otel.";
     static final String FRESHNESS = PREFIX + "snapshot_stale_timeout";
+    private static final String OTEL_ENDPOINT = OTEL + "endpoint";
+    private static final String ENDPOINT_ORIGIN = OTEL + "endpoint_origin";
+    private static final String GENERIC_OTLP_ENDPOINT = "generic";
+    private static final String METRICS_SPECIFIC_ENDPOINT = "metrics_specific";
     private static final String METER_NAME = "com.aerospike.client.metrics";
 
     private final Map<String, String> explicit = new LinkedHashMap<String, String>();
@@ -53,28 +67,51 @@ public final class OtelMetricsExporterBuilder {
     private Path yamlPath;
     private OpenTelemetry openTelemetry;
 
+    /**
+     * Load exporter settings from a YAML file.
+     */
     public OtelMetricsExporterBuilder fromYaml(Path path) {
         this.yamlPath = path;
         return this;
     }
 
+    /**
+     * Register instruments with an application-owned OpenTelemetry instance.
+     * OTLP transport settings are ignored in this mode because readers and
+     * exporters belong to the supplied provider.
+     */
     public OtelMetricsExporterBuilder openTelemetry(OpenTelemetry openTelemetry) {
         this.openTelemetry = openTelemetry;
         return this;
     }
 
+    /**
+     * Set the {@code service.name} resource attribute for an internally owned
+     * provider.
+     */
     public OtelMetricsExporterBuilder serviceName(String value) {
         return put("service_name", value);
     }
 
+    /**
+     * Set the absolute HTTP(S) OTLP metrics endpoint.
+     */
     public OtelMetricsExporterBuilder endpoint(String value) {
-        return put("endpoint", value);
+        put("endpoint", value);
+        explicit.put(ENDPOINT_ORIGIN, METRICS_SPECIFIC_ENDPOINT);
+        return this;
     }
 
+    /**
+     * Select OTLP gRPC or HTTP/protobuf transport.
+     */
     public OtelMetricsExporterBuilder protocol(OtelExporterConfig.Protocol value) {
         return put("protocol", value == null ? null : externalName(value));
     }
 
+    /**
+     * Add an OTLP request header. Later values replace the same header name.
+     */
     public OtelMetricsExporterBuilder header(String name, String value) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("header name must not be empty");
@@ -83,47 +120,81 @@ public final class OtelMetricsExporterBuilder {
         return this;
     }
 
+    /**
+     * Set the timeout for one OTLP export attempt.
+     */
     public OtelMetricsExporterBuilder timeout(Duration value) {
         return put("timeout", duration(value, "timeout"));
     }
 
+    /**
+     * Set how often the internally owned periodic reader collects metrics.
+     */
     public OtelMetricsExporterBuilder exportInterval(Duration value) {
         return put("export_interval", duration(value, "exportInterval"));
     }
 
+    /**
+     * Select OTLP payload compression.
+     */
     public OtelMetricsExporterBuilder compression(OtelExporterConfig.Compression value) {
         return put("compression", value == null ? null : value.name().toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Select the preferred aggregation temporality.
+     */
     public OtelMetricsExporterBuilder temporality(OtelExporterConfig.Temporality value) {
         return put("temporality", value == null ? null : value.name().toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Set an HTTP proxy. Proxies are supported only by HTTP/protobuf transport.
+     */
     public OtelMetricsExporterBuilder proxy(String value) {
         return put("proxy.url", value);
     }
 
+    /**
+     * Trust the PEM certificates in this file for the OTLP server.
+     */
     public OtelMetricsExporterBuilder trustedCa(Path value) {
         return put("tls.ca_file", path(value));
     }
 
+    /**
+     * Set the PEM client certificate used for mutual TLS.
+     */
     public OtelMetricsExporterBuilder clientCertificate(Path value) {
         return put("tls.client_cert_file", path(value));
     }
 
+    /**
+     * Set the PKCS#8 PEM private key paired with the client certificate.
+     */
     public OtelMetricsExporterBuilder clientKey(Path value) {
         return put("tls.client_key_file", path(value));
     }
 
+    /**
+     * Set the optional password for an encrypted PKCS#8 private key.
+     */
     public OtelMetricsExporterBuilder clientKeyPassword(String value) {
         return put("tls.client_key_password", value);
     }
 
+    /**
+     * Set {@code auto} or a positive duration after which an inactive client's
+     * snapshots are omitted.
+     */
     public OtelMetricsExporterBuilder snapshotStaleTimeout(String value) {
         explicit.put(FRESHNESS, value);
         return this;
     }
 
+    /**
+     * Add an OTel resource attribute when this builder owns the provider.
+     */
     public OtelMetricsExporterBuilder resourceAttribute(String name, String value) {
         if (name == null || name.trim().isEmpty() || value == null) {
             throw new IllegalArgumentException("resource attribute name and value are required");
@@ -132,17 +203,24 @@ public final class OtelMetricsExporterBuilder {
         return this;
     }
 
+    /**
+     * Resolve configuration, register instruments, and start an internally
+     * owned periodic reader when no OpenTelemetry instance was supplied.
+     */
     public OtelMetricsExporter build() {
-        OtelExporterConfig config = resolveConfig();
-        ClientSnapshotRegistry snapshots = new ClientSnapshotRegistry(
-            config.freshness()::createPolicy
-        );
-
         if (openTelemetry != null) {
+            FreshnessConfig freshness = resolveFreshnessConfig();
+            ClientSnapshotRegistry snapshots = new ClientSnapshotRegistry(
+                freshness::createPolicy
+            );
             Meter meter = openTelemetry.getMeter(METER_NAME);
             return new OtelMetricsExporter(meter, snapshots, null);
         }
 
+        OtelExporterConfig config = resolveConfig();
+        ClientSnapshotRegistry snapshots = new ClientSnapshotRegistry(
+            config.freshness()::createPolicy
+        );
         MetricExporter metricExporter = buildMetricExporter(config);
         PeriodicMetricReader reader = PeriodicMetricReader.builder(metricExporter)
             .setInterval(config.exportInterval())
@@ -166,10 +244,18 @@ public final class OtelMetricsExporterBuilder {
         );
     }
 
+    /**
+     * Resolve and validate configuration without creating telemetry objects.
+     */
     public OtelExporterConfig resolveConfig() {
         Map<String, String> yaml = yamlPath == null
-            ? Collections.emptyMap()
-            : YamlConfigSource.load(yamlPath);
+            ? new LinkedHashMap<String, String>()
+            : new LinkedHashMap<String, String>(YamlConfigSource.load(yamlPath));
+        // Exporter YAML and the Java builder define a complete metrics endpoint.
+        yaml.remove(ENDPOINT_ORIGIN);
+        if (yaml.containsKey(OTEL_ENDPOINT)) {
+            yaml.put(ENDPOINT_ORIGIN, METRICS_SPECIFIC_ENDPOINT);
+        }
         ConfigValues values = ConfigMerger.merge(
             defaults(),
             yaml,
@@ -179,10 +265,7 @@ public final class OtelMetricsExporterBuilder {
         );
 
         OtelExporterConfig.Protocol protocol = parseProtocol(values.getOrDefault(OTEL + "protocol", "grpc"));
-        String defaultEndpoint = protocol == OtelExporterConfig.Protocol.GRPC
-            ? "http://localhost:4317"
-            : "http://localhost:4318/v1/metrics";
-        URI endpoint = uri(values.getOrDefault(OTEL + "endpoint", defaultEndpoint), "otel.endpoint");
+        URI endpoint = resolveEndpoint(values, protocol);
         String proxyValue = values.get(OTEL + "proxy.url");
         URI proxy = proxyValue == null ? null : uri(proxyValue, "otel.proxy.url");
         if (proxy != null && protocol != OtelExporterConfig.Protocol.HTTP_PROTOBUF) {
@@ -247,15 +330,92 @@ public final class OtelMetricsExporterBuilder {
             builder.addHeader(header.getKey(), header.getValue());
         }
         if (config.proxyUrl() != null) {
-            int port = config.proxyUrl().getPort() >= 0
-                ? config.proxyUrl().getPort()
-                : 80;
-            builder.setProxyOptions(ProxyOptions.create(
-                new InetSocketAddress(config.proxyUrl().getHost(), port)
-            ));
+            builder.setProxyOptions(ProxyOptions.create(proxyAddress(config.proxyUrl())));
         }
         applyTls(builder, tls);
         return builder.build();
+    }
+
+    static InetSocketAddress proxyAddress(URI proxyUrl) {
+        int port = proxyUrl.getPort();
+        if (port < 0) {
+            port = "https".equalsIgnoreCase(proxyUrl.getScheme()) ? 443 : 80;
+        }
+        return new InetSocketAddress(proxyUrl.getHost(), port);
+    }
+
+    static URI resolveEndpoint(
+            ConfigValues values,
+            OtelExporterConfig.Protocol protocol
+    ) {
+        String defaultEndpoint = protocol == OtelExporterConfig.Protocol.GRPC
+            ? "http://localhost:4317"
+            : "http://localhost:4318/v1/metrics";
+        URI endpoint = uri(
+            values.getOrDefault(OTEL_ENDPOINT, defaultEndpoint),
+            "otel.endpoint"
+        );
+        if (protocol == OtelExporterConfig.Protocol.HTTP_PROTOBUF
+                && GENERIC_OTLP_ENDPOINT.equals(values.get(ENDPOINT_ORIGIN))) {
+            return appendSignalPath(endpoint, "v1/metrics");
+        }
+        return endpoint;
+    }
+
+    private static URI appendSignalPath(URI baseEndpoint, String signalPath) {
+        String basePath = baseEndpoint.getPath();
+        if (basePath == null) {
+            basePath = "";
+        }
+        if (!basePath.endsWith("/")) {
+            basePath += "/";
+        }
+        try {
+            return new URI(
+                baseEndpoint.getScheme(),
+                baseEndpoint.getUserInfo(),
+                baseEndpoint.getHost(),
+                baseEndpoint.getPort(),
+                basePath + signalPath,
+                baseEndpoint.getQuery(),
+                baseEndpoint.getFragment()
+            );
+        }
+        catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Unable to construct OTLP signal endpoint", e);
+        }
+    }
+
+    private FreshnessConfig resolveFreshnessConfig() {
+        Map<String, String> yaml = yamlPath == null
+            ? Collections.emptyMap()
+            : YamlConfigSource.load(yamlPath);
+
+        Map<String, String> environment = new LinkedHashMap<String, String>();
+        map(
+            environment,
+            FRESHNESS,
+            System.getenv("AEROSPIKE_METRICS_EXPORTER_SNAPSHOT_STALE_TIMEOUT")
+        );
+
+        Map<String, String> system = new LinkedHashMap<String, String>();
+        map(
+            system,
+            FRESHNESS,
+            System.getProperty("aerospike.metrics.exporter.snapshot.stale.timeout")
+        );
+
+        Map<String, String> builder = new LinkedHashMap<String, String>();
+        map(builder, FRESHNESS, explicit.get(FRESHNESS));
+
+        ConfigValues values = ConfigMerger.merge(
+            Collections.singletonMap(FRESHNESS, FreshnessConfig.AUTO),
+            yaml,
+            environment,
+            system,
+            builder
+        );
+        return new FreshnessConfig(values.getOrDefault(FRESHNESS, FreshnessConfig.AUTO));
     }
 
     private static void applyTls(OtlpGrpcMetricExporterBuilder builder, TlsConfig tls) {
@@ -264,8 +424,8 @@ public final class OtelMetricsExporterBuilder {
         }
         if (tls.hasIdentity()) {
             builder.setClientTls(
-                PemSupport.read(tls.certificateFile()),
-                PemSupport.unencryptedPrivateKeyPem(tls.privateKeyFile(), tls.privateKeyPassword())
+                PemSupport.unencryptedPrivateKeyPem(tls.privateKeyFile(), tls.privateKeyPassword()),
+                PemSupport.read(tls.certificateFile())
             );
         }
     }
@@ -276,8 +436,8 @@ public final class OtelMetricsExporterBuilder {
         }
         if (tls.hasIdentity()) {
             builder.setClientTls(
-                PemSupport.read(tls.certificateFile()),
-                PemSupport.unencryptedPrivateKeyPem(tls.privateKeyFile(), tls.privateKeyPassword())
+                PemSupport.unencryptedPrivateKeyPem(tls.privateKeyFile(), tls.privateKeyPassword()),
+                PemSupport.read(tls.certificateFile())
             );
         }
     }
@@ -305,8 +465,16 @@ public final class OtelMetricsExporterBuilder {
     static Map<String, String> environment(Map<String, String> environment) {
         Map<String, String> values = new LinkedHashMap<String, String>();
         map(values, OTEL + "service_name", environment.get("OTEL_SERVICE_NAME"));
-        map(values, OTEL + "endpoint", environment.get("OTEL_EXPORTER_OTLP_ENDPOINT"));
-        map(values, OTEL + "endpoint", environment.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"));
+        mapEndpoint(
+            values,
+            environment.get("OTEL_EXPORTER_OTLP_ENDPOINT"),
+            GENERIC_OTLP_ENDPOINT
+        );
+        mapEndpoint(
+            values,
+            environment.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"),
+            METRICS_SPECIFIC_ENDPOINT
+        );
         map(values, OTEL + "protocol", environment.get("OTEL_EXPORTER_OTLP_PROTOCOL"));
         map(values, OTEL + "protocol", environment.get("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"));
         map(values, OTEL + "timeout", environment.get("OTEL_EXPORTER_OTLP_TIMEOUT"));
@@ -338,8 +506,16 @@ public final class OtelMetricsExporterBuilder {
     static Map<String, String> systemProperties(Properties properties) {
         Map<String, String> values = new LinkedHashMap<String, String>();
         map(values, OTEL + "service_name", properties.getProperty("otel.service.name"));
-        map(values, OTEL + "endpoint", properties.getProperty("otel.exporter.otlp.endpoint"));
-        map(values, OTEL + "endpoint", properties.getProperty("otel.exporter.otlp.metrics.endpoint"));
+        mapEndpoint(
+            values,
+            properties.getProperty("otel.exporter.otlp.endpoint"),
+            GENERIC_OTLP_ENDPOINT
+        );
+        mapEndpoint(
+            values,
+            properties.getProperty("otel.exporter.otlp.metrics.endpoint"),
+            METRICS_SPECIFIC_ENDPOINT
+        );
         map(values, OTEL + "protocol", properties.getProperty("otel.exporter.otlp.protocol"));
         map(values, OTEL + "protocol", properties.getProperty("otel.exporter.otlp.metrics.protocol"));
         map(values, OTEL + "timeout", properties.getProperty("otel.exporter.otlp.timeout"));
@@ -381,6 +557,17 @@ public final class OtelMetricsExporterBuilder {
                 OTEL + "headers." + pair.substring(0, separator).trim(),
                 pair.substring(separator + 1).trim()
             );
+        }
+    }
+
+    private static void mapEndpoint(
+            Map<String, String> target,
+            String endpoint,
+            String endpointOrigin
+    ) {
+        if (endpoint != null) {
+            target.put(OTEL_ENDPOINT, endpoint);
+            target.put(ENDPOINT_ORIGIN, endpointOrigin);
         }
     }
 

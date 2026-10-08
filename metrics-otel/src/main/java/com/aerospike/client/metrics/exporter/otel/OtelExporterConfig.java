@@ -15,17 +15,33 @@ import java.util.Map;
 import com.aerospike.client.metrics.exporter.common.config.FreshnessConfig;
 import com.aerospike.client.metrics.exporter.common.config.TlsConfig;
 
+/**
+ * Immutable, fully resolved OTel exporter configuration.
+ *
+ * <p>Instances are produced by {@link OtelMetricsExporterBuilder}; callers can
+ * inspect them to validate effective configuration without starting an
+ * exporter.</p>
+ */
 public final class OtelExporterConfig {
+    /**
+     * Supported OTLP metrics transports.
+     */
     public enum Protocol {
         GRPC,
         HTTP_PROTOBUF
     }
 
+    /**
+     * Supported OTLP payload compression.
+     */
     public enum Compression {
         NONE,
         GZIP
     }
 
+    /**
+     * Aggregation temporality preference passed to the OTel SDK.
+     */
     public enum Temporality {
         CUMULATIVE,
         DELTA,

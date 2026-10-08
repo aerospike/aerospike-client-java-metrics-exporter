@@ -8,10 +8,21 @@ package com.aerospike.client.metrics.exporter.common.config;
 import java.time.Duration;
 import java.util.Locale;
 
+/**
+ * Parses positive exporter durations from concise or ISO-8601 text.
+ */
 public final class DurationParser {
     private DurationParser() {
     }
 
+    /**
+     * Parse milliseconds by default, or values suffixed with {@code ms},
+     * {@code s}, {@code m}, {@code h}; ISO-8601 values such as {@code PT10S}
+     * are also accepted.
+     *
+     * @param raw configured duration
+     * @param fieldName field used in validation messages
+     */
     public static Duration parse(String raw, String fieldName) {
         if (raw == null || raw.trim().isEmpty()) {
             throw new IllegalArgumentException(fieldName + " must not be empty");

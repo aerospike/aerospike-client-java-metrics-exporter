@@ -12,6 +12,9 @@ import com.aerospike.client.metrics.MetricsSnapshot;
 
 /**
  * Thread-safe holder for the latest immutable client snapshot.
+ *
+ * <p>Freshness is based on local arrival time rather than a snapshot wall-clock
+ * timestamp, avoiding clock-skew and time-zone dependencies.</p>
  */
 public final class SnapshotStore {
     private static final class Entry {
@@ -28,10 +31,18 @@ public final class SnapshotStore {
     private final LongSupplier nanoClock;
     private final AtomicReference<Entry> latest = new AtomicReference<Entry>();
 
+    /**
+     * Create a store with adaptive freshness detection.
+     */
     public SnapshotStore() {
         this(SnapshotFreshnessPolicy.automatic(), System::nanoTime);
     }
 
+    /**
+     * Create a store with the supplied freshness policy.
+     *
+     * @param freshnessPolicy policy used to suppress stale snapshots
+     */
     public SnapshotStore(SnapshotFreshnessPolicy freshnessPolicy) {
         this(freshnessPolicy, System::nanoTime);
     }
@@ -47,6 +58,12 @@ public final class SnapshotStore {
         this.nanoClock = nanoClock;
     }
 
+    /**
+     * Replace the retained snapshot and teach the freshness policy the observed
+     * delivery interval.
+     *
+     * @param snapshot latest immutable client snapshot
+     */
     public void update(MetricsSnapshot snapshot) {
         if (snapshot == null) {
             throw new IllegalArgumentException("snapshot must not be null");
@@ -78,10 +95,16 @@ public final class SnapshotStore {
         return latest.get() != null && currentIfFresh() == null;
     }
 
+    /**
+     * Remove the retained snapshot without resetting the configured policy.
+     */
     public void clear() {
         latest.set(null);
     }
 
+    /**
+     * Return the policy owned by this store.
+     */
     public SnapshotFreshnessPolicy freshnessPolicy() {
         return freshnessPolicy;
     }

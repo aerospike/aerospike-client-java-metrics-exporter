@@ -1,0 +1,24 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        tls:
+          cert_file: /etc/otelcol-contrib/tls/shared-localhost-test-cert.pem
+          key_file: /etc/otelcol-contrib/tls/shared-localhost-test-key.pem
+          client_ca_file: /etc/otelcol-contrib/tls/test-ca.pem
+
+processors:
+  batch:
+    timeout: 100ms
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:9464
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]

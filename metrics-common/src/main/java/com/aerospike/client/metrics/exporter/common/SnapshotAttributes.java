@@ -15,7 +15,7 @@ import com.aerospike.client.metrics.MetricsSnapshot;
  * Builds deterministic backend-neutral attributes from a snapshot.
  */
 public final class SnapshotAttributes {
-    public static final String CLUSTER = "cluster_name";
+    public static final String CLUSTER = "cluster";
     public static final String CLIENT_TYPE = "client_type";
     public static final String CLIENT_VERSION = "client_version";
     public static final String APP_ID = "app_id";
@@ -28,6 +28,10 @@ public final class SnapshotAttributes {
     private SnapshotAttributes() {
     }
 
+    /**
+     * Build client-wide attributes shared by every metric in a snapshot.
+     * Exporter-owned identity fields take precedence over customer labels.
+     */
     public static Map<String, String> global(MetricsSnapshot snapshot) {
         Map<String, String> attributes = new LinkedHashMap<String, String>();
         if (snapshot.labels != null) {
@@ -41,6 +45,12 @@ public final class SnapshotAttributes {
         return attributes;
     }
 
+    /**
+     * Build attributes for one node connection-pool series.
+     *
+     * @param connectionType {@code sync}, {@code async}, or {@code null} when
+     *                       the metric is not pool-specific
+     */
     public static Map<String, String> node(
             MetricsSnapshot snapshot,
             MetricsSnapshot.NodeSnapshot node,
@@ -54,6 +64,9 @@ public final class SnapshotAttributes {
         return attributes;
     }
 
+    /**
+     * Build attributes for one namespace on one node.
+     */
     public static Map<String, String> namespace(
             MetricsSnapshot snapshot,
             MetricsSnapshot.NodeSnapshot node,

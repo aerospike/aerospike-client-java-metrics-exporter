@@ -45,6 +45,10 @@ import io.prometheus.client.exporter.common.TextFormat;
 
 /**
  * Embedded Prometheus endpoint backed by the latest client metrics snapshot.
+ *
+ * <p>Snapshot updates and HTTP scrapes are decoupled through a concurrent
+ * per-client registry. The endpoint renders metrics on demand and never blocks
+ * the Aerospike client's metrics dispatcher on a scrape.</p>
  */
 public final class PrometheusMetricsExporter implements IMetricsExporter {
     private static final Logger LOGGER =
@@ -52,16 +56,17 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
 
     private final ClientSnapshotRegistry snapshots;
     private final CollectorRegistry registry;
-    private final AerospikeSnapshotCollector collector;
+    private final AerospikePrometheusCollector collector;
     private final HttpServer server;
     private final ExecutorService executor;
     private final ScheduledExecutorService timeoutExecutor;
+    private final Object lifecycleLock = new Object();
     private final AtomicBoolean closed = new AtomicBoolean();
 
     PrometheusMetricsExporter(PrometheusExporterConfig config) {
         this.snapshots = new ClientSnapshotRegistry(config.freshness()::createPolicy);
         this.registry = new CollectorRegistry();
-        this.collector = new AerospikeSnapshotCollector(snapshots);
+        this.collector = new AerospikePrometheusCollector(snapshots);
         this.collector.register(registry);
         this.executor = Executors.newFixedThreadPool(2, new DaemonThreadFactory());
         this.timeoutExecutor = Executors.newSingleThreadScheduledExecutor(
@@ -76,31 +81,54 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
         this.server.start();
     }
 
+    /**
+     * Create a new Prometheus exporter builder.
+     */
     public static PrometheusMetricsExporterBuilder builder() {
         return new PrometheusMetricsExporterBuilder();
     }
 
+    /**
+     * Retain the latest snapshot for its {@code client_id}. Calls made after
+     * close are ignored.
+     */
     @Override
     public void export(MetricsSnapshot snapshot) {
-        if (!closed.get()) {
+        synchronized (lifecycleLock) {
+            if (closed.get()) {
+                return;
+            }
             snapshots.update(snapshot);
         }
     }
 
+    /**
+     * Return the actual listening port, including an ephemeral port selected
+     * when the configured port was zero.
+     */
     public int port() {
         return server.getAddress().getPort();
     }
 
+    /**
+     * Expose registry state for diagnostics and tests.
+     */
     public ClientSnapshotRegistry snapshotRegistry() {
         return snapshots;
     }
 
+    /**
+     * Stop the endpoint, clear snapshots, and release executor threads.
+     * Repeated calls are safe.
+     */
     @Override
     public void close() {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-        snapshots.clear();
+        synchronized (lifecycleLock) {
+            snapshots.clear();
+        }
         server.stop(1);
         executor.shutdownNow();
         timeoutExecutor.shutdownNow();
@@ -170,6 +198,8 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            // Closing the exchange bounds collection and socket writes even if
+            // a peer stops reading midway through a scrape.
             ScheduledFuture<?> timeout = timeoutExecutor.schedule(
                 exchange::close,
                 timeoutMillis,
@@ -221,6 +251,8 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
             byte[] actual = supplied == null
                 ? new byte[expectedAuthorization.length]
                 : supplied.getBytes(StandardCharsets.UTF_8);
+            // Constant-time comparison avoids leaking matching credential
+            // prefixes through response timing.
             return MessageDigest.isEqual(expectedAuthorization, actual);
         }
 

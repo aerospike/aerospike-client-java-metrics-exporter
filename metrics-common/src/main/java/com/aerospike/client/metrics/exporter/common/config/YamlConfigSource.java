@@ -24,6 +24,12 @@ public final class YamlConfigSource {
     private YamlConfigSource() {
     }
 
+    /**
+     * Load a YAML mapping and flatten nested scalar values into dot-separated
+     * keys. Safe construction prevents arbitrary object instantiation.
+     *
+     * @param path YAML file, or {@code null} for an empty source
+     */
     public static Map<String, String> load(Path path) {
         if (path == null) {
             return Collections.emptyMap();

@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -33,6 +34,10 @@ class ClientSnapshotRegistryTest {
 
         assertThrows(
             IllegalArgumentException.class,
+            () -> registry.update(snapshot(null, 1))
+        );
+        assertThrows(
+            IllegalArgumentException.class,
             () -> registry.update(snapshot(Collections.emptyMap(), 1))
         );
         assertThrows(
@@ -49,6 +54,86 @@ class ClientSnapshotRegistryTest {
                 1
             ))
         );
+        assertEquals(0, registry.size());
+    }
+
+    @Test
+    void acceptsValidClientWideLabelsAndUnrestrictedValues() {
+        ClientSnapshotRegistry registry = registry(new AtomicLong(1L));
+        Map<String, String> labels = new LinkedHashMap<String, String>();
+        labels.put(ClientSnapshotRegistry.CLIENT_ID, "primary");
+        labels.put("deployment_region", "prod.us-east/blue");
+        labels.put("_team", "payments-core");
+
+        registry.update(snapshot(labels, 1));
+
+        assertEquals(1, registry.size());
+        assertTrue(registry.knownGlobalLabelNames().contains("deployment_region"));
+        assertTrue(registry.knownGlobalLabelNames().contains("_team"));
+    }
+
+    @Test
+    void rejectsInvalidOrNullCustomLabelsBeforeMutation() {
+        ClientSnapshotRegistry registry = registry(new AtomicLong(1L));
+        Map<String, String> invalidName = labels("primary", "orders");
+        invalidName.put("deployment.region", "us-east");
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> registry.update(snapshot(invalidName, 1))
+        );
+
+        Map<String, String> leadingNumber = labels("primary", "orders");
+        leadingNumber.put("1region", "us-east");
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> registry.update(snapshot(leadingNumber, 1))
+        );
+
+        Map<String, String> nullName = labels("primary", "orders");
+        nullName.put(null, "us-east");
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> registry.update(snapshot(nullName, 1))
+        );
+
+        Map<String, String> nullValue = labels("primary", "orders");
+        nullValue.put("region", null);
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> registry.update(snapshot(nullValue, 1))
+        );
+
+        assertEquals(0, registry.size());
+        assertTrue(registry.knownGlobalLabelNames().isEmpty());
+    }
+
+    @Test
+    void rejectsExporterOwnedLabelNamesBeforeMutation() {
+        ClientSnapshotRegistry registry = registry(new AtomicLong(1L));
+        for (String reserved : Arrays.asList(
+                "cluster",
+                "cluster_name",
+                "client_type",
+                "client_version",
+                "app_id",
+                "node",
+                "node_address",
+                "node_port",
+                "conn_type",
+                "namespace",
+                "le"
+        )) {
+            Map<String, String> labels = labels("primary", "orders");
+            labels.put(reserved, "spoofed");
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> registry.update(snapshot(labels, 1)),
+                reserved
+            );
+        }
+
+        assertEquals(0, registry.size());
+        assertTrue(registry.knownGlobalLabelNames().isEmpty());
     }
 
     @Test

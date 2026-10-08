@@ -11,6 +11,9 @@ import java.nio.file.Path;
  * Backend-neutral PEM file locations. Files are loaded once at startup in v1.
  */
 public final class TlsConfig {
+    /**
+     * Client-certificate policy for the Prometheus HTTPS endpoint.
+     */
     public enum ClientAuth {
         NONE,
         OPTIONAL,
@@ -23,6 +26,13 @@ public final class TlsConfig {
     private final String privateKeyPassword;
     private final ClientAuth clientAuth;
 
+    /**
+     * Create immutable TLS file configuration.
+     *
+     * <p>The certificate and private key form one identity and must therefore
+     * be configured together. Client authentication additionally requires a
+     * CA used to verify presented certificates.</p>
+     */
     public TlsConfig(
             Path caFile,
             Path certificateFile,
@@ -63,10 +73,16 @@ public final class TlsConfig {
         return clientAuth;
     }
 
+    /**
+     * Return whether a certificate/private-key identity is configured.
+     */
     public boolean hasIdentity() {
         return certificateFile != null;
     }
 
+    /**
+     * Return whether a custom CA trust source is configured.
+     */
     public boolean hasCustomTrust() {
         return caFile != null;
     }

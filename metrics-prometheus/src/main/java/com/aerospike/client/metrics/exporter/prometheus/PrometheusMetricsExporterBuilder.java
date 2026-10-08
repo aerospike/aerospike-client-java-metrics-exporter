@@ -21,6 +21,12 @@ import com.aerospike.client.metrics.exporter.common.config.SecretResolver;
 import com.aerospike.client.metrics.exporter.common.config.TlsConfig;
 import com.aerospike.client.metrics.exporter.common.config.YamlConfigSource;
 
+/**
+ * Builds an embedded Prometheus scrape endpoint for Aerospike client metrics.
+ *
+ * <p>Explicit builder values have highest precedence, followed by JVM system
+ * properties, environment variables, YAML, and built-in defaults.</p>
+ */
 public final class PrometheusMetricsExporterBuilder {
     static final String PREFIX = "aerospike_metrics_exporter.";
     static final String PROMETHEUS = PREFIX + "prometheus.";
@@ -29,15 +35,24 @@ public final class PrometheusMetricsExporterBuilder {
     private final Map<String, String> explicit = new LinkedHashMap<String, String>();
     private Path yamlPath;
 
+    /**
+     * Load exporter settings from a YAML file.
+     */
     public PrometheusMetricsExporterBuilder fromYaml(Path path) {
         this.yamlPath = path;
         return this;
     }
 
+    /**
+     * Set the interface or host name on which the endpoint listens.
+     */
     public PrometheusMetricsExporterBuilder bindAddress(String value) {
         return put("bind_address", value);
     }
 
+    /**
+     * Set the listening port. Port {@code 0} requests an ephemeral port.
+     */
     public PrometheusMetricsExporterBuilder port(int value) {
         if (value < 0 || value > 65535) {
             throw new IllegalArgumentException("port must be between 0 and 65535");
@@ -45,10 +60,16 @@ public final class PrometheusMetricsExporterBuilder {
         return put("port", Integer.toString(value));
     }
 
+    /**
+     * Set the HTTP path used for scrapes.
+     */
     public PrometheusMetricsExporterBuilder path(String value) {
         return put("path", value);
     }
 
+    /**
+     * Bound the total time spent serving one HTTP request.
+     */
     public PrometheusMetricsExporterBuilder httpTimeout(Duration value) {
         if (value == null || value.toMillis() < 1L) {
             throw new IllegalArgumentException("httpTimeout must be at least 1ms");
@@ -56,32 +77,53 @@ public final class PrometheusMetricsExporterBuilder {
         return put("http_timeout", value.toString());
     }
 
+    /**
+     * Require HTTP Basic authentication for scrapes.
+     */
     public PrometheusMetricsExporterBuilder basicAuth(String username, String password) {
         put("basic_auth.username", username);
         put("basic_auth.password", password);
         return this;
     }
 
+    /**
+     * Enable or disable HTTPS.
+     */
     public PrometheusMetricsExporterBuilder tlsEnabled(boolean enabled) {
         return put("tls.enabled", Boolean.toString(enabled));
     }
 
+    /**
+     * Set the PEM certificate chain presented by the HTTPS endpoint.
+     */
     public PrometheusMetricsExporterBuilder serverCertificate(Path value) {
         return put("tls.cert_file", path(value));
     }
 
+    /**
+     * Set the PKCS#8 PEM private key paired with the server certificate.
+     */
     public PrometheusMetricsExporterBuilder serverKey(Path value) {
         return put("tls.key_file", path(value));
     }
 
+    /**
+     * Set the optional password for an encrypted server private key.
+     */
     public PrometheusMetricsExporterBuilder serverKeyPassword(String value) {
         return put("tls.key_password", value);
     }
 
+    /**
+     * Set the CA used to verify Prometheus client certificates.
+     */
     public PrometheusMetricsExporterBuilder clientCa(Path value) {
         return put("tls.client_ca_file", path(value));
     }
 
+    /**
+     * Configure whether scrape clients may or must present a certificate.
+     */
     public PrometheusMetricsExporterBuilder clientAuth(TlsConfig.ClientAuth value) {
         return put(
             "tls.client_auth",
@@ -89,15 +131,25 @@ public final class PrometheusMetricsExporterBuilder {
         );
     }
 
+    /**
+     * Set {@code auto} or a positive duration after which an inactive client's
+     * snapshots are omitted.
+     */
     public PrometheusMetricsExporterBuilder snapshotStaleTimeout(String value) {
         explicit.put(FRESHNESS, value);
         return this;
     }
 
+    /**
+     * Resolve configuration, bind the endpoint, and start serving scrapes.
+     */
     public PrometheusMetricsExporter build() {
         return new PrometheusMetricsExporter(resolveConfig());
     }
 
+    /**
+     * Resolve and validate configuration without binding a server socket.
+     */
     public PrometheusExporterConfig resolveConfig() {
         Map<String, String> yaml = yamlPath == null
             ? Collections.emptyMap()

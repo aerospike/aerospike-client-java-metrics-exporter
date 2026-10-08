@@ -15,6 +15,12 @@ public final class ConfigMerger {
     private ConfigMerger() {
     }
 
+    /**
+     * Merge sources in declaration order. Later non-null values override
+     * earlier values, allowing callers to express configuration precedence.
+     *
+     * @param sourcesLowToHigh maps ordered from lowest to highest precedence
+     */
     @SafeVarargs
     public static ConfigValues merge(Map<String, String>... sourcesLowToHigh) {
         Map<String, String> merged = new LinkedHashMap<String, String>();

@@ -10,12 +10,36 @@
     <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>aerospike-client-metrics-examples</artifactId>
-  <packaging>pom</packaging>
+  <artifactId>aerospike-client-metrics-example</artifactId>
+  <name>Aerospike Client Metrics Exporter Example</name>
 
-  <modules>
-    <module>otel-example</module>
-    <module>prometheus-example</module>
-    <module>e2e-example</module>
-  </modules>
+  <dependencies>
+    <dependency>
+      <groupId>com.aerospike</groupId>
+      <artifactId>aerospike-client-metrics-otel</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.aerospike</groupId>
+      <artifactId>aerospike-client-metrics-prometheus</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.aerospike</groupId>
+      <artifactId>aerospike-client-jdk21</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.6.4</version>
+        <configuration>
+          <mainClass>com.aerospike.examples.metrics.MetricsExporterExample</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

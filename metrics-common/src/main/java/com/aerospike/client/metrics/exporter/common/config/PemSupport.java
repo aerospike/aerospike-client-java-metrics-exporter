@@ -39,6 +39,11 @@ public final class PemSupport {
     private PemSupport() {
     }
 
+    /**
+     * Read a PEM file once during exporter construction.
+     *
+     * @return file bytes, or {@code null} when the path is {@code null}
+     */
     public static byte[] read(Path path) {
         if (path == null) {
             return null;
@@ -61,6 +66,13 @@ public final class PemSupport {
             + "\n-----END PRIVATE KEY-----\n").getBytes(StandardCharsets.US_ASCII);
     }
 
+    /**
+     * Build the server-side TLS context used by the embedded Prometheus
+     * endpoint. Custom trust is installed only when client certificates may be
+     * authenticated.
+     *
+     * @param config certificate, key, and optional client CA configuration
+     */
     public static SSLContext createServerContext(TlsConfig config) {
         if (config == null || !config.hasIdentity()) {
             throw new IllegalArgumentException("HTTPS requires a server certificate and private key");

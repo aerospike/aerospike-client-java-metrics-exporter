@@ -10,6 +10,12 @@ import java.time.Duration;
 import com.aerospike.client.metrics.exporter.common.config.FreshnessConfig;
 import com.aerospike.client.metrics.exporter.common.config.TlsConfig;
 
+/**
+ * Immutable, fully resolved configuration for the embedded scrape endpoint.
+ *
+ * <p>Instances are produced by {@link PrometheusMetricsExporterBuilder};
+ * callers can inspect them without opening a network socket.</p>
+ */
 public final class PrometheusExporterConfig {
     private final String bindAddress;
     private final int port;
@@ -67,6 +73,9 @@ public final class PrometheusExporterConfig {
         return password;
     }
 
+    /**
+     * Return whether both Basic authentication credentials were configured.
+     */
     public boolean hasBasicAuth() {
         return username != null;
     }

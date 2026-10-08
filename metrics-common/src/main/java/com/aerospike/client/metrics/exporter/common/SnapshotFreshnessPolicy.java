@@ -44,10 +44,20 @@ public final class SnapshotFreshnessPolicy {
         this.missedIntervals = missedIntervals;
     }
 
+    /**
+     * Create the default adaptive policy: a 30-second initial interval and
+     * three missed intervals before a snapshot is stale.
+     */
     public static SnapshotFreshnessPolicy automatic() {
         return automatic(DEFAULT_EXPECTED_INTERVAL, DEFAULT_MISSED_INTERVALS);
     }
 
+    /**
+     * Create an adaptive policy that learns the median delivery interval.
+     *
+     * @param initialInterval interval used before enough samples are observed
+     * @param missedIntervals number of missed intervals tolerated
+     */
     public static SnapshotFreshnessPolicy automatic(Duration initialInterval, int missedIntervals) {
         requirePositive(initialInterval, "initialInterval");
         if (missedIntervals < 2) {
@@ -61,6 +71,11 @@ public final class SnapshotFreshnessPolicy {
         );
     }
 
+    /**
+     * Create a policy with a fixed stale timeout.
+     *
+     * @param timeout maximum snapshot age
+     */
     public static SnapshotFreshnessPolicy fixed(Duration timeout) {
         requirePositive(timeout, "timeout");
         return new SnapshotFreshnessPolicy(false, timeout.toNanos(), 0L, 1);
@@ -94,6 +109,9 @@ public final class SnapshotFreshnessPolicy {
         }
     }
 
+    /**
+     * Return the currently effective stale timeout in monotonic-clock units.
+     */
     public long staleTimeoutNanos() {
         if (!automatic) {
             return fixedTimeoutNanos;
@@ -104,10 +122,19 @@ public final class SnapshotFreshnessPolicy {
         return expectedIntervalNanos * missedIntervals;
     }
 
+    /**
+     * Return the currently effective stale timeout.
+     */
     public Duration staleTimeout() {
         return Duration.ofNanos(staleTimeoutNanos());
     }
 
+    /**
+     * Determine whether an arrival timestamp is still safe to expose.
+     *
+     * @param lastArrivalNanos snapshot arrival from a monotonic clock
+     * @param nowNanos current value from the same clock
+     */
     public boolean isFresh(long lastArrivalNanos, long nowNanos) {
         if (lastArrivalNanos == 0L || nowNanos < lastArrivalNanos) {
             return false;
