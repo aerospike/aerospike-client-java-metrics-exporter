@@ -6,7 +6,6 @@
 package com.aerospike.client.metrics.exporter.prometheus;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -20,6 +19,9 @@ import com.aerospike.client.metrics.exporter.common.config.FreshnessConfig;
 import com.aerospike.client.metrics.exporter.common.config.SecretResolver;
 import com.aerospike.client.metrics.exporter.common.config.TlsConfig;
 import com.aerospike.client.metrics.exporter.common.config.YamlConfigSource;
+import com.aerospike.client.metrics.exporter.common.config.reload.FileWatchConfiguration;
+import com.aerospike.client.metrics.exporter.common.config.reload.ReloadableFileReference.Backend;
+import com.aerospike.client.metrics.exporter.common.config.reload.ReloadSettings;
 
 /**
  * Builds an embedded Prometheus scrape endpoint for Aerospike client metrics.
@@ -31,6 +33,7 @@ public final class PrometheusMetricsExporterBuilder {
     static final String PREFIX = "aerospike_metrics_exporter.";
     static final String PROMETHEUS = PREFIX + "prometheus.";
     static final String FRESHNESS = PREFIX + "snapshot_stale_timeout";
+    static final String RELOAD = PREFIX + "reload.";
 
     private final Map<String, String> explicit = new LinkedHashMap<String, String>();
     private Path yamlPath;
@@ -141,6 +144,29 @@ public final class PrometheusMetricsExporterBuilder {
     }
 
     /**
+     * Enable or disable credential-file change detection.
+     *
+     * <p>Detection does not apply changes to a running exporter.</p>
+     */
+    public PrometheusMetricsExporterBuilder reloadEnabled(boolean enabled) {
+        explicit.put(RELOAD + "enabled", Boolean.toString(enabled));
+        return this;
+    }
+
+    /**
+     * Set how often credential files are checked for stable content changes.
+     */
+    public PrometheusMetricsExporterBuilder reloadInterval(Duration value) {
+        if (value == null || value.compareTo(ReloadSettings.MINIMUM_INTERVAL) < 0) {
+            throw new IllegalArgumentException(
+                "reloadInterval must be at least " + ReloadSettings.MINIMUM_INTERVAL
+            );
+        }
+        explicit.put(RELOAD + "interval", value.toString());
+        return this;
+    }
+
+    /**
      * Resolve configuration, bind the endpoint, and start serving scrapes.
      */
     public PrometheusMetricsExporter build() {
@@ -151,6 +177,21 @@ public final class PrometheusMetricsExporterBuilder {
      * Resolve and validate configuration without binding a server socket.
      */
     public PrometheusExporterConfig resolveConfig() {
+        return createConfig(resolveValues());
+    }
+
+    /**
+     * Resolve the fixed credential-file paths that can be watched for changes.
+     *
+     * <p>This does not start a watcher or modify a running exporter.</p>
+     */
+    public FileWatchConfiguration resolveFileWatchConfiguration() {
+        ConfigValues values = resolveValues();
+        createConfig(values);
+        return FileWatchConfiguration.from(values, Backend.PROMETHEUS);
+    }
+
+    private ConfigValues resolveValues() {
         Map<String, String> yaml = yamlPath == null
             ? Collections.emptyMap()
             : YamlConfigSource.load(yamlPath);
@@ -161,7 +202,11 @@ public final class PrometheusMetricsExporterBuilder {
             systemProperties(System.getProperties()),
             explicit
         );
+        ReloadSettings.from(values);
+        return values;
+    }
 
+    private PrometheusExporterConfig createConfig(ConfigValues values) {
         String bindAddress = values.getOrDefault(PROMETHEUS + "bind_address", "0.0.0.0");
         int port = values.getInt(PROMETHEUS + "port", 9146);
         if (port < 0 || port > 65535) {
@@ -267,6 +312,16 @@ public final class PrometheusMetricsExporterBuilder {
         if (stale != null) {
             values.put(FRESHNESS, stale);
         }
+        String reloadEnabled =
+            environment.get("AEROSPIKE_METRICS_EXPORTER_RELOAD_ENABLED");
+        if (reloadEnabled != null) {
+            values.put(RELOAD + "enabled", reloadEnabled);
+        }
+        String reloadInterval =
+            environment.get("AEROSPIKE_METRICS_EXPORTER_RELOAD_INTERVAL");
+        if (reloadInterval != null) {
+            values.put(RELOAD + "interval", reloadInterval);
+        }
         return values;
     }
 
@@ -284,6 +339,16 @@ public final class PrometheusMetricsExporterBuilder {
         String stale = properties.getProperty("aerospike.metrics.exporter.snapshot.stale.timeout");
         if (stale != null) {
             values.put(FRESHNESS, stale);
+        }
+        String reloadEnabled =
+            properties.getProperty("aerospike.metrics.exporter.reload.enabled");
+        if (reloadEnabled != null) {
+            values.put(RELOAD + "enabled", reloadEnabled);
+        }
+        String reloadInterval =
+            properties.getProperty("aerospike.metrics.exporter.reload.interval");
+        if (reloadInterval != null) {
+            values.put(RELOAD + "interval", reloadInterval);
         }
         return values;
     }
@@ -313,7 +378,7 @@ public final class PrometheusMetricsExporterBuilder {
     }
 
     private static Path nullablePath(String value) {
-        return value == null || value.trim().isEmpty() ? null : Paths.get(value.trim());
+        return SecretResolver.resolveRequiredPathReference(value);
     }
 
     private static String path(Path value) {

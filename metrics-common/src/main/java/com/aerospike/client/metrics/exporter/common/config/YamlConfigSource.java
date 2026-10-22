@@ -10,64 +10,57 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /**
- * Loads YAML into dot-separated scalar keys.
+ * Loads and validates the typed exporter YAML document.
  */
 public final class YamlConfigSource {
     private YamlConfigSource() {
     }
 
     /**
-     * Load a YAML mapping and flatten nested scalar values into dot-separated
-     * keys. Safe construction prevents arbitrary object instantiation.
+     * Load validated YAML and flatten it into the dot-separated keys used by
+     * the source-precedence merger.
      *
      * @param path YAML file, or {@code null} for an empty source
      */
     public static Map<String, String> load(Path path) {
+        return path == null ? Collections.emptyMap() : loadDocument(path).toFlatMap();
+    }
+
+    /**
+     * Load the strict typed representation of an exporter YAML file.
+     *
+     * <p>Malformed YAML errors deliberately omit source values because the
+     * document may contain credentials.</p>
+     */
+    public static ExporterYamlConfig loadDocument(Path path) {
         if (path == null) {
-            return Collections.emptyMap();
+            return ExporterYamlConfig.parse(null);
         }
         if (!Files.isRegularFile(path)) {
             throw new IllegalArgumentException("Configuration file does not exist: " + path);
         }
 
-        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+        LoaderOptions options = new LoaderOptions();
+        options.setAllowDuplicateKeys(false);
+        Yaml yaml = new Yaml(new SafeConstructor(options));
         try (InputStream input = Files.newInputStream(path)) {
-            Object loaded = yaml.load(input);
-            if (loaded == null) {
-                return Collections.emptyMap();
-            }
-            if (!(loaded instanceof Map)) {
-                throw new IllegalArgumentException("Exporter YAML root must be a mapping");
-            }
-            Map<String, String> flattened = new LinkedHashMap<String, String>();
-            flatten("", (Map<?, ?>) loaded, flattened);
-            return flattened;
+            return ExporterYamlConfig.parse(yaml.load(input));
         }
         catch (IOException e) {
             throw new IllegalArgumentException("Unable to read exporter YAML: " + path, e);
         }
-    }
-
-    private static void flatten(String prefix, Map<?, ?> source, Map<String, String> target) {
-        for (Map.Entry<?, ?> entry : source.entrySet()) {
-            String key = String.valueOf(entry.getKey());
-            String qualified = prefix.isEmpty() ? key : prefix + "." + key;
-            Object value = entry.getValue();
-
-            if (value instanceof Map) {
-                flatten(qualified, (Map<?, ?>) value, target);
-            }
-            else if (value != null) {
-                target.put(qualified, String.valueOf(value));
-            }
+        catch (YAMLException e) {
+            throw new IllegalArgumentException(
+                "Invalid exporter YAML syntax or duplicate field: " + path
+            );
         }
     }
 }

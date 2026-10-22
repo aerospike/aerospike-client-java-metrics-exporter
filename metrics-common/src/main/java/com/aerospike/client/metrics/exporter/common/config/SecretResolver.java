@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 public final class SecretResolver {
     private static final Pattern ENV_PLACEHOLDER =
         Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)}");
+    private static final String FILE_PREFIX = "file:";
 
     private SecretResolver() {
     }
@@ -36,6 +37,65 @@ public final class SecretResolver {
     }
 
     static String resolve(String value, Map<String, String> environment) {
+        String resolved = substitute(value, environment);
+        Path path = fileReference(resolved);
+        if (path != null) {
+            try {
+                return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
+            }
+            catch (IOException e) {
+                throw new IllegalArgumentException("Unable to read secret file: " + path, e);
+            }
+        }
+        return resolved;
+    }
+
+    /**
+     * Resolve a final, effective value that directly names a file.
+     */
+    public static Path resolveRequiredPathReference(String value) {
+        return resolveRequiredPathReference(value, System.getenv());
+    }
+
+    static Path resolveRequiredPathReference(
+            String value,
+            Map<String, String> environment
+    ) {
+        String resolved = substitute(value, environment);
+        return resolved == null || resolved.trim().isEmpty()
+            ? null
+            : Paths.get(resolved.trim());
+    }
+
+    /**
+     * Resolve the path behind a final, effective {@code file:} secret value.
+     */
+    public static Path resolveRequiredFileReference(String value) {
+        return resolveRequiredFileReference(value, System.getenv());
+    }
+
+    static Path resolveRequiredFileReference(
+            String value,
+            Map<String, String> environment
+    ) {
+        return fileReference(substitute(value, environment));
+    }
+
+    private static Path fileReference(String value) {
+        if (value == null || !value.startsWith(FILE_PREFIX)) {
+            return null;
+        }
+        String path = value.substring(FILE_PREFIX.length()).trim();
+        if (path.isEmpty()) {
+            throw new IllegalArgumentException("file: secret reference must include a path");
+        }
+        return Paths.get(path);
+    }
+
+    private static String substitute(
+            String value,
+            Map<String, String> environment
+    ) {
         if (value == null) {
             return null;
         }
@@ -48,24 +108,16 @@ public final class SecretResolver {
             String name = matcher.group(1);
             String resolved = environment.get(name);
             if (resolved == null) {
-                throw new IllegalArgumentException("Required environment variable is not set: " + name);
+                throw new IllegalArgumentException(
+                    "Required environment variable is not set: " + name
+                );
             }
             matcher.appendReplacement(resolvedValue, Matcher.quoteReplacement(resolved));
         }
-        if (foundPlaceholder) {
-            matcher.appendTail(resolvedValue);
-            value = resolvedValue.toString();
+        if (!foundPlaceholder) {
+            return value;
         }
-
-        if (value.startsWith("file:")) {
-            Path path = Paths.get(value.substring("file:".length()));
-            try {
-                return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
-            }
-            catch (IOException e) {
-                throw new IllegalArgumentException("Unable to read secret file: " + path, e);
-            }
-        }
-        return value;
+        matcher.appendTail(resolvedValue);
+        return resolvedValue.toString();
     }
 }

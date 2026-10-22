@@ -22,6 +22,9 @@ import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.aerospike.client.metrics.exporter.common.config.TlsConfig;
+import com.aerospike.client.metrics.exporter.common.config.reload.FileWatchConfiguration;
+
 class PrometheusMetricsExporterBuilderTest {
     @TempDir
     Path temporaryDirectory;
@@ -119,6 +122,8 @@ class PrometheusMetricsExporterBuilderTest {
             "key-secret"
         );
         environment.put("AEROSPIKE_METRICS_EXPORTER_SNAPSHOT_STALE_TIMEOUT", "4s");
+        environment.put("AEROSPIKE_METRICS_EXPORTER_RELOAD_ENABLED", "false");
+        environment.put("AEROSPIKE_METRICS_EXPORTER_RELOAD_INTERVAL", "9s");
         Map<String, String> expectedEnvironment = new LinkedHashMap<String, String>();
         expectedEnvironment.put(PrometheusMetricsExporterBuilder.PROMETHEUS + "bind_address", "127.0.0.1");
         expectedEnvironment.put(PrometheusMetricsExporterBuilder.PROMETHEUS + "port", "9999");
@@ -131,6 +136,8 @@ class PrometheusMetricsExporterBuilderTest {
         expectedEnvironment.put(PrometheusMetricsExporterBuilder.PROMETHEUS + "tls.key_file", "key.pem");
         expectedEnvironment.put(PrometheusMetricsExporterBuilder.PROMETHEUS + "tls.key_password", "key-secret");
         expectedEnvironment.put(PrometheusMetricsExporterBuilder.FRESHNESS, "4s");
+        expectedEnvironment.put(PrometheusMetricsExporterBuilder.RELOAD + "enabled", "false");
+        expectedEnvironment.put(PrometheusMetricsExporterBuilder.RELOAD + "interval", "9s");
         assertEquals(
             expectedEnvironment,
             PrometheusMetricsExporterBuilder.environment(environment)
@@ -163,6 +170,8 @@ class PrometheusMetricsExporterBuilderTest {
             "system-key-secret"
         );
         properties.setProperty("aerospike.metrics.exporter.snapshot.stale.timeout", "5s");
+        properties.setProperty("aerospike.metrics.exporter.reload.enabled", "true");
+        properties.setProperty("aerospike.metrics.exporter.reload.interval", "8s");
         Map<String, String> expectedProperties = new LinkedHashMap<String, String>();
         expectedProperties.put(PrometheusMetricsExporterBuilder.PROMETHEUS + "bind_address", "localhost");
         expectedProperties.put(PrometheusMetricsExporterBuilder.PROMETHEUS + "port", "9888");
@@ -190,6 +199,8 @@ class PrometheusMetricsExporterBuilderTest {
             "system-key-secret"
         );
         expectedProperties.put(PrometheusMetricsExporterBuilder.FRESHNESS, "5s");
+        expectedProperties.put(PrometheusMetricsExporterBuilder.RELOAD + "enabled", "true");
+        expectedProperties.put(PrometheusMetricsExporterBuilder.RELOAD + "interval", "8s");
         assertEquals(
             expectedProperties,
             PrometheusMetricsExporterBuilder.systemProperties(properties)
@@ -279,6 +290,116 @@ class PrometheusMetricsExporterBuilderTest {
                 .fromYaml(invalidFreshness)
                 .resolveConfig()
         );
+
+        Path invalidReload = writeYaml(
+            "  reload:\n"
+                + "    interval: 500ms\n"
+        );
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> PrometheusMetricsExporter.builder()
+                .fromYaml(invalidReload)
+                .resolveConfig()
+        );
+    }
+
+    @Test
+    void resolvesFixedWatchedFilesFromFinalSystemAndBuilderValues() throws IOException {
+        Path systemCertificate = Files.writeString(
+            temporaryDirectory.resolve("system-cert.pem"),
+            "system"
+        );
+        Path certificate = Files.writeString(
+            temporaryDirectory.resolve("builder-cert.pem"),
+            "certificate"
+        );
+        Path key = Files.writeString(
+            temporaryDirectory.resolve("builder-key.pem"),
+            "key"
+        );
+        Path keyPassword = Files.writeString(
+            temporaryDirectory.resolve("key-password"),
+            "key-secret"
+        );
+        Path clientCa = Files.writeString(
+            temporaryDirectory.resolve("client-ca.pem"),
+            "ca"
+        );
+        Path username = Files.writeString(temporaryDirectory.resolve("username"), "metrics");
+        Path password = Files.writeString(temporaryDirectory.resolve("password"), "secret");
+        String certificateProperty =
+            "aerospike.metrics.exporter.prometheus.tls.cert_file";
+        String oldCertificate = System.getProperty(certificateProperty);
+        try {
+            System.setProperty(certificateProperty, systemCertificate.toString());
+            PrometheusMetricsExporterBuilder builder = PrometheusMetricsExporter.builder()
+                .bindAddress("127.0.0.1")
+                .basicAuth("file:" + username, "file:" + password)
+                .tlsEnabled(true)
+                .serverCertificate(certificate)
+                .serverKey(key)
+                .serverKeyPassword("file:" + keyPassword)
+                .clientCa(clientCa)
+                .clientAuth(TlsConfig.ClientAuth.REQUIRED);
+
+            FileWatchConfiguration watched = builder.resolveFileWatchConfiguration();
+
+            assertEquals(6, watched.references().size());
+            assertTrue(watched.paths().contains(certificate.toAbsolutePath()));
+            assertFalse(watched.paths().contains(systemCertificate.toAbsolutePath()));
+            assertTrue(watched.paths().contains(key.toAbsolutePath()));
+            assertTrue(watched.paths().contains(keyPassword.toAbsolutePath()));
+            assertTrue(watched.paths().contains(clientCa.toAbsolutePath()));
+            assertTrue(watched.paths().contains(username.toAbsolutePath()));
+            assertTrue(watched.paths().contains(password.toAbsolutePath()));
+        }
+        finally {
+            restoreProperty(certificateProperty, oldCertificate);
+        }
+    }
+
+    @Test
+    void resolvesReloadSettingsWithNormalSourcePrecedence() throws IOException {
+        Path yaml = temporaryDirectory.resolve("reload-precedence.yml");
+        Files.writeString(
+            yaml,
+            "aerospike_metrics_exporter:\n"
+                + "  reload:\n"
+                + "    enabled: false\n"
+                + "    interval: 9s\n"
+        );
+        String intervalProperty = "aerospike.metrics.exporter.reload.interval";
+        String oldInterval = System.getProperty(intervalProperty);
+        try {
+            System.setProperty(intervalProperty, "4s");
+            FileWatchConfiguration watched = PrometheusMetricsExporter.builder()
+                .fromYaml(yaml)
+                .reloadEnabled(true)
+                .reloadInterval(Duration.ofSeconds(2))
+                .resolveFileWatchConfiguration();
+
+            assertTrue(watched.settings().enabled());
+            assertEquals(Duration.ofSeconds(2), watched.settings().interval());
+        }
+        finally {
+            restoreProperty(intervalProperty, oldInterval);
+        }
+    }
+
+    @Test
+    void detectingAFileChangeDoesNotMutateResolvedRuntimeConfig() throws IOException {
+        Path username = Files.writeString(temporaryDirectory.resolve("fixed-user"), "metrics");
+        Path password = Files.writeString(temporaryDirectory.resolve("fixed-password"), "first");
+        PrometheusMetricsExporterBuilder builder = PrometheusMetricsExporter.builder()
+            .bindAddress("127.0.0.1")
+            .basicAuth("file:" + username, "file:" + password);
+        PrometheusExporterConfig runtime = builder.resolveConfig();
+        FileWatchConfiguration watched = builder.resolveFileWatchConfiguration();
+
+        Files.writeString(password, "second");
+
+        assertEquals("first", runtime.password());
+        assertTrue(watched.paths().contains(password.toAbsolutePath()));
     }
 
     private Path writeYaml(String prometheusContent) throws IOException {

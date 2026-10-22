@@ -1,6 +1,7 @@
 aerospike_metrics_exporter:
   snapshot_stale_timeout: 30s
 
+#We can get rid of this and use only env_vars
   otel:
     service_name: aerospike-client-metrics-example
     endpoint: http://localhost:4317

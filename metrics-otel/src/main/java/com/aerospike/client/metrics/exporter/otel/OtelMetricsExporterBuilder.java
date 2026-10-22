@@ -11,7 +11,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -27,6 +26,9 @@ import com.aerospike.client.metrics.exporter.common.config.PemSupport;
 import com.aerospike.client.metrics.exporter.common.config.SecretResolver;
 import com.aerospike.client.metrics.exporter.common.config.TlsConfig;
 import com.aerospike.client.metrics.exporter.common.config.YamlConfigSource;
+import com.aerospike.client.metrics.exporter.common.config.reload.FileWatchConfiguration;
+import com.aerospike.client.metrics.exporter.common.config.reload.ReloadableFileReference.Backend;
+import com.aerospike.client.metrics.exporter.common.config.reload.ReloadSettings;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -55,6 +57,7 @@ public final class OtelMetricsExporterBuilder {
     static final String PREFIX = "aerospike_metrics_exporter.";
     static final String OTEL = PREFIX + "otel.";
     static final String FRESHNESS = PREFIX + "snapshot_stale_timeout";
+    static final String RELOAD = PREFIX + "reload.";
     private static final String OTEL_ENDPOINT = OTEL + "endpoint";
     private static final String ENDPOINT_ORIGIN = OTEL + "endpoint_origin";
     private static final String GENERIC_OTLP_ENDPOINT = "generic";
@@ -65,7 +68,7 @@ public final class OtelMetricsExporterBuilder {
     private final Map<String, String> resourceAttributes = new LinkedHashMap<String, String>();
 
     private Path yamlPath;
-    private OpenTelemetry openTelemetry;
+    private OpenTelemetry openTelemetry; //do we need this, not common
 
     /**
      * Load exporter settings from a YAML file.
@@ -193,6 +196,29 @@ public final class OtelMetricsExporterBuilder {
     }
 
     /**
+     * Enable or disable credential-file change detection.
+     *
+     * <p>Detection does not apply changes to a running OTLP transport.</p>
+     */
+    public OtelMetricsExporterBuilder reloadEnabled(boolean enabled) {
+        explicit.put(RELOAD + "enabled", Boolean.toString(enabled));
+        return this;
+    }
+
+    /**
+     * Set how often credential files are checked for stable content changes.
+     */
+    public OtelMetricsExporterBuilder reloadInterval(Duration value) {
+        if (value == null || value.compareTo(ReloadSettings.MINIMUM_INTERVAL) < 0) {
+            throw new IllegalArgumentException(
+                "reloadInterval must be at least " + ReloadSettings.MINIMUM_INTERVAL
+            );
+        }
+        explicit.put(RELOAD + "interval", value.toString());
+        return this;
+    }
+
+    /**
      * Add an OTel resource attribute when this builder owns the provider.
      */
     public OtelMetricsExporterBuilder resourceAttribute(String name, String value) {
@@ -248,6 +274,21 @@ public final class OtelMetricsExporterBuilder {
      * Resolve and validate configuration without creating telemetry objects.
      */
     public OtelExporterConfig resolveConfig() {
+        return createConfig(resolveValues());
+    }
+
+    /**
+     * Resolve the fixed credential-file paths that can be watched for changes.
+     *
+     * <p>This does not start a watcher or replace a running OTLP transport.</p>
+     */
+    public FileWatchConfiguration resolveFileWatchConfiguration() {
+        ConfigValues values = resolveValues();
+        createConfig(values);
+        return FileWatchConfiguration.from(values, Backend.OTEL);
+    }
+
+    private ConfigValues resolveValues() {
         Map<String, String> yaml = yamlPath == null
             ? new LinkedHashMap<String, String>()
             : new LinkedHashMap<String, String>(YamlConfigSource.load(yamlPath));
@@ -263,7 +304,11 @@ public final class OtelMetricsExporterBuilder {
             systemProperties(System.getProperties()),
             explicit
         );
+        ReloadSettings.from(values);
+        return values;
+    }
 
+    private OtelExporterConfig createConfig(ConfigValues values) {
         OtelExporterConfig.Protocol protocol = parseProtocol(values.getOrDefault(OTEL + "protocol", "grpc"));
         URI endpoint = resolveEndpoint(values, protocol);
         String proxyValue = values.get(OTEL + "proxy.url");
@@ -498,6 +543,16 @@ public final class OtelMetricsExporterBuilder {
         ));
         map(values, OTEL + "proxy.url", environment.get("AEROSPIKE_METRICS_EXPORTER_OTEL_PROXY_URL"));
         map(values, FRESHNESS, environment.get("AEROSPIKE_METRICS_EXPORTER_SNAPSHOT_STALE_TIMEOUT"));
+        map(
+            values,
+            RELOAD + "enabled",
+            environment.get("AEROSPIKE_METRICS_EXPORTER_RELOAD_ENABLED")
+        );
+        map(
+            values,
+            RELOAD + "interval",
+            environment.get("AEROSPIKE_METRICS_EXPORTER_RELOAD_INTERVAL")
+        );
         parseHeaders(values, environment.get("OTEL_EXPORTER_OTLP_HEADERS"));
         parseHeaders(values, environment.get("OTEL_EXPORTER_OTLP_METRICS_HEADERS"));
         return values;
@@ -539,6 +594,16 @@ public final class OtelMetricsExporterBuilder {
         ));
         map(values, OTEL + "proxy.url", properties.getProperty("aerospike.metrics.exporter.otel.proxy.url"));
         map(values, FRESHNESS, properties.getProperty("aerospike.metrics.exporter.snapshot.stale.timeout"));
+        map(
+            values,
+            RELOAD + "enabled",
+            properties.getProperty("aerospike.metrics.exporter.reload.enabled")
+        );
+        map(
+            values,
+            RELOAD + "interval",
+            properties.getProperty("aerospike.metrics.exporter.reload.interval")
+        );
         parseHeaders(values, properties.getProperty("otel.exporter.otlp.headers"));
         parseHeaders(values, properties.getProperty("otel.exporter.otlp.metrics.headers"));
         return values;
@@ -646,7 +711,7 @@ public final class OtelMetricsExporterBuilder {
     }
 
     private static Path nullablePath(String value) {
-        return value == null || value.trim().isEmpty() ? null : Paths.get(value.trim());
+        return SecretResolver.resolveRequiredPathReference(value);
     }
 
     private static String path(Path value) {

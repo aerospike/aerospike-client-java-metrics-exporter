@@ -7,6 +7,7 @@ package com.aerospike.client.metrics.exporter.common.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -116,6 +117,58 @@ class ConfigUtilitiesTest {
         assertThrows(
             IllegalArgumentException.class,
             () -> SecretResolver.resolve("file:" + temporaryDirectory.resolve("missing"))
+        );
+    }
+
+    @Test
+    void resolvesWatchedPathsWithTheSameRulesAsSecrets() throws Exception {
+        Path secret = Files.writeString(temporaryDirectory.resolve("password"), " value \n");
+        Map<String, String> environment =
+            Collections.singletonMap("TEST_SECRET_FILE", secret.toString());
+
+        assertEquals(
+            secret,
+            SecretResolver.resolveRequiredPathReference(
+                "  ${TEST_SECRET_FILE}  ",
+                environment
+            )
+        );
+        assertEquals(
+            secret,
+            SecretResolver.resolveRequiredFileReference(
+                "file:  ${TEST_SECRET_FILE}  ",
+                environment
+            )
+        );
+        assertEquals(
+            "value",
+            SecretResolver.resolve("file:  ${TEST_SECRET_FILE}  ", environment)
+        );
+        assertNull(SecretResolver.resolveRequiredFileReference("inline-secret", environment));
+    }
+
+    @Test
+    void rejectsMissingEnvironmentReferencesInFinalConfiguration() {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> SecretResolver.resolveRequiredPathReference(
+                "${MISSING_PATH}",
+                Collections.emptyMap()
+            )
+        );
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> SecretResolver.resolveRequiredFileReference(
+                "file:${MISSING_SECRET_FILE}",
+                Collections.emptyMap()
+            )
+        );
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> SecretResolver.resolve(
+                "file:${MISSING_SECRET_FILE}",
+                Collections.emptyMap()
+            )
         );
     }
 }

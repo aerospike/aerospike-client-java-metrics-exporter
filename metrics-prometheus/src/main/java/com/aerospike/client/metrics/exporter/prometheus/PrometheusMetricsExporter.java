@@ -60,7 +60,7 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
     private final HttpServer server;
     private final ExecutorService executor;
     private final ScheduledExecutorService timeoutExecutor;
-    private final Object lifecycleLock = new Object();
+    private final Object lifecycleLock = new Object(); //why do we need
     private final AtomicBoolean closed = new AtomicBoolean();
 
     PrometheusMetricsExporter(PrometheusExporterConfig config) {
@@ -94,8 +94,9 @@ public final class PrometheusMetricsExporter implements IMetricsExporter {
      */
     @Override
     public void export(MetricsSnapshot snapshot) {
+        //todo: check for null here, check if mutex lock can be used instead of sync
         synchronized (lifecycleLock) {
-            if (closed.get()) {
+            if (closed.get()) { //why is it inside sync if closed itself is thread-safe
                 return;
             }
             snapshots.update(snapshot);

@@ -114,7 +114,7 @@ final class AerospikePrometheusCollector extends Collector {
             labels
         );
         boolean populated = false;
-        for (MetricsSnapshot snapshot : snapshots) {
+        for (MetricsSnapshot snapshot : snapshots) { // can we optimsie this loop, instead of lopoping eahc yime?, check MetricFamilySample
             if (!descriptor.extended() || snapshot.extendedMetricsEnabled) {
                 family.addMetric(
                     labelValues(labels, SnapshotAttributes.global(snapshot)),
