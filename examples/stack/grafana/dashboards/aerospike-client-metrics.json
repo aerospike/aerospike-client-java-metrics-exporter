@@ -81,7 +81,7 @@
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 17},
       "id": 6,
       "panels": [],
-      "title": "Extended metrics",
+      "title": "Operational metrics",
       "type": "row"
     },
     {
@@ -132,7 +132,7 @@
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
         {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_errors_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "errors · {{namespace}} · {{client_id}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "timeouts · {{namespace}} · {{client_id}} · {{job}}", "refId": "B"},
+        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_client_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]) + rate(aerospike_client_namespace_server_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "timeouts · {{namespace}} · {{client_id}} · {{job}}", "refId": "B"},
         {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_key_busy_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "key busy · {{namespace}} · {{client_id}} · {{job}}", "refId": "C"}
       ],
       "title": "Namespace outcome rates",
@@ -157,41 +157,33 @@
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
       "id": 12,
       "panels": [],
-      "title": "Latency histograms (direct Prometheus path)",
+      "title": "Latency histograms (OpenTelemetry path)",
       "type": "row"
     },
     {
       "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "P95 from every Aerospike latency histogram. Histograms currently exist on the direct Prometheus path only.",
+      "description": "P95 RPC latency exported through OpenTelemetry, grouped by operation.",
       "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
       "id": 13,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_conn_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "conn · {{namespace}} · {{client_id}}", "refId": "A"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_write_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "write · {{namespace}} · {{client_id}}", "refId": "B"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_read_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "read · {{namespace}} · {{client_id}}", "refId": "C"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_batch_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "batch · {{namespace}} · {{client_id}}", "refId": "D"},
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, le) (rate(aerospike_client_namespace_latency_query_bucket{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "query · {{namespace}} · {{client_id}}", "refId": "E"}
+        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, latency_type, le) (rate(aerospike_client_namespace_latency_bucket_total{job=\"aerospike-client-via-otel\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "{{latency_type}} · {{namespace}} · {{client_id}}", "refId": "A"}
       ],
       "title": "P95 latency by operation",
       "type": "timeseries"
     },
     {
       "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "Observation rates for every Aerospike latency histogram.",
-      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "description": "P95 whole-call latency exported through OpenTelemetry, grouped by operation.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
       "id": 14,
       "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_conn_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "conn · {{namespace}} · {{client_id}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_write_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "write · {{namespace}} · {{client_id}}", "refId": "B"},
-        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_read_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "read · {{namespace}} · {{client_id}}", "refId": "C"},
-        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_batch_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "batch · {{namespace}} · {{client_id}}", "refId": "D"},
-        {"editorMode": "code", "expr": "sum by (client_id, namespace) (rate(aerospike_client_namespace_latency_query_count{job=\"aerospike-client-direct\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "query · {{namespace}} · {{client_id}}", "refId": "E"}
+        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, latency_type, le) (rate(aerospike_client_latency_bucket_total{job=\"aerospike-client-via-otel\"}[$__rate_interval])))", "legendFormat": "{{latency_type}} · {{client_id}}", "refId": "A"}
       ],
-      "title": "Latency histogram observation rates",
+      "title": "P95 whole-call latency",
       "type": "timeseries"
     }
   ],

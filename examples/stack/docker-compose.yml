@@ -22,8 +22,6 @@ services:
       - prometheus-data:/prometheus
     ports:
       - "9091:9090"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       - otel-collector
     restart: unless-stopped

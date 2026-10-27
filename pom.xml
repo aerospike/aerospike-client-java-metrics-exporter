@@ -9,13 +9,12 @@
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>Aerospike Java Client Metrics Exporters</name>
-  <description>Optional OpenTelemetry and Prometheus exporters for Aerospike Java client metrics.</description>
+  <name>Aerospike Java Client Metrics Exporter</name>
+  <description>Optional OpenTelemetry exporter for Aerospike Java client metrics.</description>
 
   <modules>
-    <module>metrics-common</module>
-    <module>metrics-otel</module>
-    <module>metrics-prometheus</module>
+    <module>common</module>
+    <module>otel</module>
     <module>examples</module>
   </modules>
 
@@ -25,10 +24,7 @@
 
     <aerospike.client.version>10.4.0</aerospike.client.version>
     <opentelemetry.version>1.49.0</opentelemetry.version>
-    <prometheus.version>0.16.0</prometheus.version>
-    <snakeyaml.version>2.4</snakeyaml.version>
     <junit.version>5.12.2</junit.version>
-    <testcontainers.version>2.0.3</testcontainers.version>
 
     <maven.compiler.version>3.14.0</maven.compiler.version>
     <maven.enforcer.version>3.5.0</maven.enforcer.version>
@@ -60,30 +56,9 @@
       </dependency>
 
       <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_common</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.yaml</groupId>
-        <artifactId>snakeyaml</artifactId>
-        <version>${snakeyaml.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter</artifactId>
         <version>${junit.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>testcontainers</artifactId>
-        <version>${testcontainers.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -105,6 +80,10 @@
           <version>${maven.surefire.version}</version>
           <configuration>
             <useModulePath>false</useModulePath>
+            <includes>
+              <include>**/Test*.java</include>
+            </includes>
+            <excludedGroups>integration</excludedGroups>
           </configuration>
         </plugin>
         <plugin>
@@ -114,6 +93,10 @@
           <configuration>
             <skipITs>${skipITs}</skipITs>
             <useModulePath>false</useModulePath>
+            <includes>
+              <include>**/Test*Integration.java</include>
+            </includes>
+            <groups>integration</groups>
           </configuration>
         </plugin>
         <plugin>

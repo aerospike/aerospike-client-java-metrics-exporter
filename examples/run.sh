@@ -5,8 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 STACK_DIR="${SCRIPT_DIR}/stack"
 COMPOSE_PROJECT="aerospike-metrics-exporter-example"
-CONFIG_FILE="${SCRIPT_DIR}/config/aerospike-metrics-exporter.yml"
-MAVEN_REPO="${REPO_ROOT}/.m2"
 EXAMPLE_DURATION_SECONDS="${EXAMPLE_DURATION_SECONDS:-45}"
 KEEP_EXAMPLE_STACK="${KEEP_EXAMPLE_STACK:-false}"
 APP_LOG="$(mktemp -t aerospike-metrics-example.XXXXXX.log)"
@@ -17,10 +15,7 @@ COMPOSE=(
   --project-name "${COMPOSE_PROJECT}"
   --file "${STACK_DIR}/docker-compose.yml"
 )
-MAVEN=(
-  mvn
-  "-Dmaven.repo.local=${MAVEN_REPO}"
-)
+MAVEN=(mvn)
 
 cleanup() {
   local exit_code=$?
@@ -136,6 +131,7 @@ docker info >/dev/null
 export AEROSPIKE_HOST="${AEROSPIKE_HOST:-localhost}"
 export AEROSPIKE_PORT="${AEROSPIKE_PORT:-3000}"
 export AEROSPIKE_NAMESPACE="${AEROSPIKE_NAMESPACE:-test}"
+export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4317}"
 echo "Using Aerospike at ${AEROSPIKE_HOST}:${AEROSPIKE_PORT}"
 
 echo "Building the metrics exporter example"
@@ -153,27 +149,13 @@ wait_for_url \
   "provisioned Grafana dashboard" \
   "http://localhost:3004/api/dashboards/uid/aerospike-client-metrics-example"
 
-echo "Starting the dual-exporter Aerospike workload"
+echo "Starting the OpenTelemetry Aerospike workload"
 (
   cd "${REPO_ROOT}"
   "${MAVEN[@]}" -q -pl examples exec:java \
-    -Dexec.args="--exporter=both --config=${CONFIG_FILE} --duration=${EXAMPLE_DURATION_SECONDS}"
+    -Dexec.args="--duration=${EXAMPLE_DURATION_SECONDS}"
 ) >"${APP_LOG}" 2>&1 &
 APP_PID=$!
-
-wait_for_metric \
-  "direct Prometheus exporter metrics" \
-  "http://localhost:9146/metrics" \
-  "aerospike_client_total_nodes"
-wait_for_metric \
-  "direct primary client metrics" \
-  "http://localhost:9146/metrics" \
-  'client_id="primary"'
-wait_for_metric \
-  "direct reporting client metrics" \
-  "http://localhost:9146/metrics" \
-  'client_id="reporting"'
-echo "Verified direct Prometheus exporter flow"
 
 wait_for_metric \
   "OTel metrics exposed by the Collector" \
@@ -190,18 +172,12 @@ wait_for_metric \
 echo "Verified OTel exporter -> Collector flow"
 
 wait_for_prometheus_query \
-  "direct Prometheus scrape" \
-  'aerospike_client_total_nodes{job="aerospike-client-direct",client_id="primary"}'
-wait_for_prometheus_query \
-  "direct Prometheus reporting client scrape" \
-  'aerospike_client_total_nodes{job="aerospike-client-direct",client_id="reporting"}'
-wait_for_prometheus_query \
   "Collector Prometheus scrape" \
   'aerospike_client_total_nodes{job="aerospike-client-via-otel",client_id="primary"}'
 wait_for_prometheus_query \
   "Collector Prometheus reporting client scrape" \
   'aerospike_client_total_nodes{job="aerospike-client-via-otel",client_id="reporting"}'
-echo "Verified both Prometheus scrape jobs"
+echo "Verified Collector Prometheus scrape job"
 
 if ! "${COMPOSE[@]}" logs otel-collector |
     grep --fixed-strings "aerospike_client_total_nodes" >/dev/null; then

@@ -21,12 +21,15 @@
     </dependency>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-metrics-prometheus</artifactId>
-      <version>${project.version}</version>
+      <artifactId>aerospike-client-jdk21</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-jdk21</artifactId>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-metrics</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-exporter-otlp</artifactId>
     </dependency>
   </dependencies>
 
