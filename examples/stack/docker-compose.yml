@@ -2,26 +2,26 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.161.0
     container_name: aerospike-metrics-example-otel-collector
-    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    command: [--config=/etc/otelcol-contrib/config.yaml]
     volumes:
       - ./otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "9464:9464"
+      - 4317:4317
+      - 4318:4318
+      - 9464:9464
     restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v3.14.0
     container_name: aerospike-metrics-example-prometheus
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
-      - "9091:9090"
+      - 9091:9090
     depends_on:
       - otel-collector
     restart: unless-stopped
@@ -38,7 +38,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "3004:3000"
+      - 3004:3000
     depends_on:
       - prometheus
     restart: unless-stopped
