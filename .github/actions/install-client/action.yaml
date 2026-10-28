@@ -23,10 +23,41 @@ runs:
         path: .client-src
         persist-credentials: false
 
+    # Keyed by the resolved commit, so a branch ref never restores an older build.
+    - name: Compute the client cache key
+      id: cache-key
+      shell: bash
+      working-directory: .client-src
+      env:
+        ARTIFACT_ID: ${{ inputs.artifact-id }}
+      run: |
+        sha=$(git rev-parse HEAD)
+        java_version=$(java -XshowSettings:properties -version 2>&1 | awk -F' = ' '/java.specification.version/ {print $2}')
+        echo "key=aerospike-client-${RUNNER_OS}-java${java_version}-${ARTIFACT_ID}-${sha}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the client build
+      id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.m2/repository/com/aerospike/aerospike-parent
+          ~/.m2/repository/com/aerospike/${{ inputs.artifact-id }}
+        key: ${{ steps.cache-key.outputs.key }}
+
     - name: Build and install the client
+      if: steps.restore.outputs.cache-hit != 'true'
       shell: bash
       working-directory: .client-src
       run: mvn -B -ntp -pl client -am install -DskipTests
+
+    - name: Save the client build
+      if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.m2/repository/com/aerospike/aerospike-parent
+          ~/.m2/repository/com/aerospike/${{ inputs.artifact-id }}
+        key: ${{ steps.cache-key.outputs.key }}
 
     - name: Check the installed client has the metrics API
       shell: bash
