@@ -1,7 +1,6 @@
 name: CI
 
 on:
-  pull_request:
   push:
     branches: ["**"]
   workflow_dispatch:
@@ -10,21 +9,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/stage' }}
 
 env:
-  JAVA_VERSION: "21"
   # CLIENT-OM-330-client-metrics. No published client has the metrics exporter API yet.
   CLIENT_REF: d1105aaed81e3c82a7bd5cb0f0fb4f352cd576c0
 
 jobs:
   build-and-test:
-    name: Build and test
-    # A same-repository PR commit is already tested by its push run.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    name: Build and test (Java ${{ matrix.java }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [21, 25]
     services:
       aerospike:
         image: aerospike/aerospike-server:8.2.0.0
@@ -45,7 +45,7 @@ jobs:
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
           distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: ${{ matrix.java }}
           cache: maven
 
       - name: Install the pinned client
@@ -59,11 +59,15 @@ jobs:
       - name: Unit and integration tests
         run: mvn -B -ntp -Pintegration-tests verify
 
+      - name: Test summary
+        if: always()
+        run: python3 .github/scripts/test-summary.py "Java ${{ matrix.java }}"
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-reports
+          name: test-reports-java-${{ matrix.java }}
           path: "**/target/*-reports/"
           if-no-files-found: ignore
           retention-days: 7
