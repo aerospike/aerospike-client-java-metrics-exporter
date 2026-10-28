@@ -1,0 +1,43 @@
+name: Install Aerospike client
+description: >-
+  Build the Aerospike Java client from a pinned commit, install it into the
+  local Maven repository, and check that it provides the metrics exporter API.
+
+inputs:
+  ref:
+    description: Commit or branch of aerospike/aerospike-client-java to build
+    required: true
+  artifact-id:
+    description: Client artifact the exporter compiles against
+    required: false
+    default: aerospike-client-jdk21
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout client source
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        repository: aerospike/aerospike-client-java
+        ref: ${{ inputs.ref }}
+        path: .client-src
+        persist-credentials: false
+
+    - name: Build and install the client
+      shell: bash
+      working-directory: .client-src
+      run: mvn -B -ntp -pl client -am install -DskipTests
+
+    - name: Check the installed client has the metrics API
+      shell: bash
+      env:
+        ARTIFACT_ID: ${{ inputs.artifact-id }}
+      run: |
+        repo=$(mvn -B -q -N help:evaluate -Dexpression=settings.localRepository -DforceStdout)
+        version=$(mvn -B -q -N help:evaluate -Dexpression=aerospike.client.version -DforceStdout)
+        jar="$repo/com/aerospike/$ARTIFACT_ID/$version/$ARTIFACT_ID-$version.jar"
+        if ! unzip -l "$jar" com/aerospike/client/metrics/IMetricsExporter.class >/dev/null; then
+          echo "::error::$jar has no IMetricsExporter, so it is not the pinned client build"
+          exit 1
+        fi
+        echo "Using $jar"

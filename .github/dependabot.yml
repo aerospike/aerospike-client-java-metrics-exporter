@@ -8,6 +8,17 @@ updates:
       - dependencies
       - github-actions
 
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - java
+    ignore:
+      # Published clients lack the metrics exporter API; CI builds it from a pinned commit.
+      - dependency-name: com.aerospike:aerospike-client-jdk21
+
   # Add additional package ecosystems as needed for your project
   # Python dependencies (uncomment if using Python)
   # - package-ecosystem: "pip"

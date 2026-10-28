@@ -1,0 +1,90 @@
+name: E2E
+
+on:
+  push:
+    branches: [main, stage]
+  schedule:
+    - cron: 30 2 * * * # 08:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "21"
+  # CLIENT-OM-330-client-metrics. No published client has the metrics exporter API yet.
+  CLIENT_REF: d1105aaed81e3c82a7bd5cb0f0fb4f352cd576c0
+  CLIENT_BRANCH: CLIENT-OM-330-client-metrics
+
+jobs:
+  example-stack:
+    name: Example stack
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      aerospike:
+        image: aerospike/aerospike-server:8.2.0.0
+        ports:
+          - 3000:3000
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Install the pinned client
+        uses: ./.github/actions/install-client
+        with:
+          ref: ${{ env.CLIENT_REF }}
+
+      - name: Wait for Aerospike
+        run: timeout 60 bash -c 'until (echo > /dev/tcp/localhost/3000) 2>/dev/null; do sleep 1; done'
+
+      - name: Run the example stack
+        run: bash examples/run.sh
+
+  client-canary:
+    name: Newest client commit
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Install the newest client commit
+        uses: ./.github/actions/install-client
+        with:
+          ref: ${{ env.CLIENT_BRANCH }}
+
+      - name: Unit tests
+        run: mvn -B -ntp verify
