@@ -1,7 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: daily
     labels:
@@ -18,6 +20,14 @@ updates:
     ignore:
       # Published clients lack the metrics exporter API; CI builds it from a pinned commit.
       - dependency-name: com.aerospike:aerospike-client-jdk21
+
+  - package-ecosystem: docker-compose
+    directory: /examples/stack
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker
 
   # Add additional package ecosystems as needed for your project
   # Python dependencies (uncomment if using Python)
