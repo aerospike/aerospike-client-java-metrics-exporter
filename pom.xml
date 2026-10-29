@@ -13,6 +13,7 @@
   <description>Optional OpenTelemetry and Prometheus exporters for Aerospike Java client metrics.</description>
 
   <modules>
+    <module>test-support</module>
     <module>metrics-common</module>
     <module>metrics-otel</module>
     <module>metrics-prometheus</module>
@@ -27,6 +28,7 @@
     <opentelemetry.version>1.49.0</opentelemetry.version>
     <prometheus.version>0.16.0</prometheus.version>
     <snakeyaml.version>2.4</snakeyaml.version>
+    <bouncycastle.version>1.86</bouncycastle.version>
     <junit.version>5.12.2</junit.version>
     <testcontainers.version>2.0.3</testcontainers.version>
 
@@ -48,6 +50,11 @@
       <dependency>
         <groupId>com.aerospike</groupId>
         <artifactId>aerospike-client-metrics-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.aerospike</groupId>
+        <artifactId>aerospike-client-metrics-test-support</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -74,6 +81,11 @@
         <groupId>org.yaml</groupId>
         <artifactId>snakeyaml</artifactId>
         <version>${snakeyaml.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
       </dependency>
       <dependency>
         <groupId>org.junit.jupiter</groupId>

@@ -43,11 +43,16 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.aerospike.client.metrics.LatencyType;
 import com.aerospike.client.metrics.MetricsSnapshot;
+import com.aerospike.client.metrics.exporter.test.TlsTestCertificates;
 
 class PrometheusMetricsExporterTest {
+    @TempDir
+    Path temporaryDirectory;
+
     @Test
     void servesCompleteMetricCatalogWithExactValuesAndLabels() throws Exception {
         PrometheusMetricsExporter exporter = PrometheusMetricsExporter.builder()
@@ -561,13 +566,15 @@ class PrometheusMetricsExporterTest {
 
     @Test
     void servesMetricsOverTrustedHttps() throws Exception {
-        Path fixtures = testFixtures();
+        TlsTestCertificates certificates = TlsTestCertificates.create(
+            temporaryDirectory.resolve("prometheus-https")
+        );
         PrometheusMetricsExporter exporter = PrometheusMetricsExporter.builder()
             .bindAddress("127.0.0.1")
             .port(0)
             .tlsEnabled(true)
-            .serverCertificate(fixtures.resolve("shared-localhost-test-cert.pem"))
-            .serverKey(fixtures.resolve("shared-localhost-test-key.pem"))
+            .serverCertificate(certificates.serverCertificate())
+            .serverKey(certificates.serverKey())
             .build();
         try {
             exporter.export(snapshot(false));
@@ -575,7 +582,7 @@ class PrometheusMetricsExporterTest {
                 "https://localhost:" + exporter.port() + "/metrics"
             ).toURL().openConnection();
             connection.setSSLSocketFactory(
-                trustContext(fixtures.resolve("test-ca.pem")).getSocketFactory()
+                trustContext(certificates.caCertificate()).getSocketFactory()
             );
             assertEquals(200, connection.getResponseCode());
             assertTrue(body(connection).contains("aerospike_client_total_nodes"));
@@ -759,18 +766,6 @@ class PrometheusMetricsExporterTest {
         SSLContext context = SSLContext.getInstance("TLS");
         context.init(null, trustManagers.getTrustManagers(), null);
         return context;
-    }
-
-    private static Path testFixtures() {
-        Path directory = Paths.get("").toAbsolutePath();
-        while (directory != null) {
-            Path fixtures = directory.resolve("test-fixtures/tls");
-            if (Files.isDirectory(fixtures)) {
-                return fixtures;
-            }
-            directory = directory.getParent();
-        }
-        throw new IllegalStateException("Unable to locate test-fixtures/tls");
     }
 
     private static void await(CountDownLatch latch) {

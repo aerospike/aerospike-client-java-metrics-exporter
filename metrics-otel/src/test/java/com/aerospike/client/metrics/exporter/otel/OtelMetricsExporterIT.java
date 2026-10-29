@@ -13,12 +13,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
@@ -27,11 +27,15 @@ import org.testcontainers.utility.MountableFile;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.metrics.MetricsPolicy;
+import com.aerospike.client.metrics.exporter.test.TlsTestCertificates;
 
 class OtelMetricsExporterIT {
     private static final DockerImageName COLLECTOR_IMAGE = DockerImageName.parse(
         "otel/opentelemetry-collector-contrib:0.161.0"
     );
+
+    @TempDir
+    Path temporaryDirectory;
 
     @Test
     void exportsSharedClientsOverGrpcAndHttpProtobuf() throws Exception {
@@ -49,8 +53,10 @@ class OtelMetricsExporterIT {
 
     @Test
     void exportsThroughMutuallyAuthenticatedTlsCollector() throws Exception {
-        Path fixtures = testFixtures();
-        try (GenericContainer<?> collector = mutualTlsCollector(fixtures)) {
+        TlsTestCertificates certificates = TlsTestCertificates.create(
+            temporaryDirectory.resolve("collector-mtls")
+        );
+        try (GenericContainer<?> collector = mutualTlsCollector(certificates)) {
             collector.start();
             OtelMetricsExporter exporter = OtelMetricsExporter.builder()
                 .endpoint(
@@ -58,9 +64,9 @@ class OtelMetricsExporterIT {
                         + collector.getMappedPort(4317)
                 )
                 .protocol(OtelExporterConfig.Protocol.GRPC)
-                .trustedCa(fixtures.resolve("test-ca.pem"))
-                .clientCertificate(fixtures.resolve("shared-localhost-test-cert.pem"))
-                .clientKey(fixtures.resolve("shared-localhost-test-key.pem"))
+                .trustedCa(certificates.caCertificate())
+                .clientCertificate(certificates.clientCertificate())
+                .clientKey(certificates.clientKey())
                 .exportInterval(Duration.ofSeconds(1))
                 .build();
             AerospikeClient client = null;
@@ -276,27 +282,25 @@ class OtelMetricsExporterIT {
     }
 
     @SuppressWarnings("resource") // The caller owns the returned container.
-    private static GenericContainer<?> mutualTlsCollector(Path fixtures) {
+    private static GenericContainer<?> mutualTlsCollector(
+            TlsTestCertificates certificates
+    ) {
         return new GenericContainer<>(COLLECTOR_IMAGE)
             .withCopyToContainer(
                 MountableFile.forClasspathResource("otel-collector-mtls-it.yml"),
                 "/etc/otelcol-contrib/config.yaml"
             )
             .withCopyToContainer(
-                MountableFile.forHostPath(fixtures.resolve("test-ca.pem")),
-                "/etc/otelcol-contrib/tls/test-ca.pem"
+                MountableFile.forHostPath(certificates.caCertificate()),
+                "/etc/otelcol-contrib/tls/ca.pem"
             )
             .withCopyToContainer(
-                MountableFile.forHostPath(
-                    fixtures.resolve("shared-localhost-test-cert.pem")
-                ),
-                "/etc/otelcol-contrib/tls/shared-localhost-test-cert.pem"
+                MountableFile.forHostPath(certificates.serverCertificate()),
+                "/etc/otelcol-contrib/tls/server-cert.pem"
             )
             .withCopyToContainer(
-                MountableFile.forHostPath(
-                    fixtures.resolve("shared-localhost-test-key.pem")
-                ),
-                "/etc/otelcol-contrib/tls/shared-localhost-test-key.pem"
+                MountableFile.forHostPath(certificates.serverKey()),
+                "/etc/otelcol-contrib/tls/server-key.pem"
             )
             .withCommand("--config=/etc/otelcol-contrib/config.yaml")
             .withExposedPorts(4317, 9464)
@@ -313,18 +317,6 @@ class OtelMetricsExporterIT {
             .withCommand("--config=/etc/otelcol-contrib/config.yaml")
             .withExposedPorts(4318, 9464)
             .waitingFor(Wait.forHttp("/metrics").forPort(9464));
-    }
-
-    private static Path testFixtures() {
-        Path directory = Path.of("").toAbsolutePath();
-        while (directory != null) {
-            Path fixtures = directory.resolve("test-fixtures/tls");
-            if (Files.isDirectory(fixtures)) {
-                return fixtures;
-            }
-            directory = directory.getParent();
-        }
-        throw new IllegalStateException("Unable to locate test-fixtures/tls");
     }
 
     private static String awaitCollectorMetric(

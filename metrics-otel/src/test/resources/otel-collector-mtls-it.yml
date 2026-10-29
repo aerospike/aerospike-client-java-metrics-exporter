@@ -4,9 +4,9 @@ receivers:
       grpc:
         endpoint: 0.0.0.0:4317
         tls:
-          cert_file: /etc/otelcol-contrib/tls/shared-localhost-test-cert.pem
-          key_file: /etc/otelcol-contrib/tls/shared-localhost-test-key.pem
-          client_ca_file: /etc/otelcol-contrib/tls/test-ca.pem
+          cert_file: /etc/otelcol-contrib/tls/server-cert.pem
+          key_file: /etc/otelcol-contrib/tls/server-key.pem
+          client_ca_file: /etc/otelcol-contrib/tls/ca.pem
 
 processors:
   batch:

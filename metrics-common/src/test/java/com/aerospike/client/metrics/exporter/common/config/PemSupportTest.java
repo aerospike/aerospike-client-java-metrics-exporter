@@ -20,6 +20,8 @@ import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.aerospike.client.metrics.exporter.test.TlsTestCertificates;
+
 class PemSupportTest {
     @TempDir
     Path temporaryDirectory;
@@ -66,28 +68,18 @@ class PemSupportTest {
     }
 
     @Test
-    void createsServerContextFromCertificateAndPkcs8Key() {
-        Path fixtures = testFixtures();
+    void createsServerContextFromCertificateAndPkcs8Key() throws Exception {
+        TlsTestCertificates certificates = TlsTestCertificates.create(
+            temporaryDirectory.resolve("server-context")
+        );
         TlsConfig config = new TlsConfig(
             null,
-            fixtures.resolve("shared-localhost-test-cert.pem"),
-            fixtures.resolve("shared-localhost-test-key.pem"),
+            certificates.serverCertificate(),
+            certificates.serverKey(),
             null,
             TlsConfig.ClientAuth.NONE
         );
         assertNotNull(PemSupport.createServerContext(config));
-    }
-
-    private static Path testFixtures() {
-        Path directory = Path.of("").toAbsolutePath();
-        while (directory != null) {
-            Path fixtures = directory.resolve("test-fixtures/tls");
-            if (Files.isDirectory(fixtures)) {
-                return fixtures;
-            }
-            directory = directory.getParent();
-        }
-        throw new IllegalStateException("Unable to locate test-fixtures/tls");
     }
 
     private static String pem(String type, byte[] bytes) {
