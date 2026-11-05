@@ -1,5 +1,9 @@
 name: CI/CD (artifacts)
 
+# Pull requests, pushes to main and stage, and manual runs publish a snapshot to the JFrog database project.
+# Release tags publish the release, create its release bundle and promote it to TEST.
+# Promotion beyond TEST is manual: promote-to-preview.yaml and promote-to-prod.yaml.
+
 on:
   pull_request:
   push:
@@ -26,6 +30,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.version.outputs.release }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
@@ -45,19 +50,24 @@ jobs:
           SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           base=$(tr -d '[:space:]' < VERSION)
+          release=false
           if [[ "${GITHUB_REF_TYPE}" == tag ]]; then
             version="${GITHUB_REF_NAME#v}"
             if [[ "${version}" != "${base}" ]]; then
               echo "::error::Tag ${GITHUB_REF_NAME} does not match the VERSION file (${base})"
               exit 1
             fi
+            release=true
           elif [[ -n "${PR_NUMBER}" ]]; then
             version="${base}-pr${PR_NUMBER}-${SOURCE_SHA::7}"
           else
             version="${base}-${GITHUB_REF_NAME//[^A-Za-z0-9.]/-}-${SOURCE_SHA::7}"
           fi
-          echo "Publishing version ${version}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "Publishing version ${version} (release ${release})"
+          {
+            echo "version=${version}"
+            echo "release=${release}"
+          } >> "${GITHUB_OUTPUT}"
 
   publish:
     name: Publish
@@ -70,7 +80,7 @@ jobs:
       # Must match the ref in the uses: line above.
       gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-build-name: aerospike-client-metrics-exporter
+      jf-build-name: aerospike-client-java-metrics-exporter
       oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
       oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
       version: ${{ needs.version.outputs.version }}
@@ -87,3 +97,64 @@ jobs:
       gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
       gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
       gpg-key-pass: ${{ secrets.GPG_PASS }}
+
+  release-bundle:
+    name: Release bundle
+    needs: [version, publish]
+    # Pull requests run this in dry-run mode so the bundle wiring is checked before a release needs it.
+    if: needs.version.outputs.release == 'true' || github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      id-token: write
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+    with:
+      # Must match the ref in the uses: line above.
+      gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-bundle-name: aerospike-client-java-metrics-exporter
+      jf-build-names: ${{ needs.publish.outputs.jf-build-name }}:${{ needs.publish.outputs.jf-build-id }}
+      version: ${{ needs.version.outputs.version }}
+      jf-bundle-revision: auto
+      # Uploaded by the publish deploy job under its default name; marks the bundle as a multi-module Maven release.
+      gh-bundle-metadata-artifact-name: bundle-metadata
+      dry-run: ${{ needs.version.outputs.release != 'true' }}
+      oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
+      oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
+
+  promote-dev:
+    name: Promote to DEV
+    needs: [version, release-bundle]
+    if: needs.version.outputs.release == 'true'
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    uses: aerospike/shared-workflows/.github/workflows/reusable_promote-release-bundle.yaml@308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+    with:
+      # Must match the ref in the uses: line above.
+      gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-bundle-name: aerospike-client-java-metrics-exporter
+      version: ${{ needs.release-bundle.outputs.bundle-version }}
+      target-stage: DEV
+      oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
+      oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
+
+  promote-test:
+    name: Promote to TEST
+    needs: [version, release-bundle, promote-dev]
+    if: needs.version.outputs.release == 'true'
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    uses: aerospike/shared-workflows/.github/workflows/reusable_promote-release-bundle.yaml@308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+    with:
+      # Must match the ref in the uses: line above.
+      gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-bundle-name: aerospike-client-java-metrics-exporter
+      version: ${{ needs.release-bundle.outputs.bundle-version }}
+      target-stage: TEST
+      oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
+      oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
