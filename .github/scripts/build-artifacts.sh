@@ -60,6 +60,15 @@ for module in "${MODULES[@]}"; do
     fi
     cp "${jar}" "${DIST_DIR}/"
   done
+  # The shared deploy takes coordinates from pom.properties inside each jar and otherwise parses the
+  # file name, which misreads versions like 0.0.1-pr10-318adda. Javadoc jars carry no pom.properties.
+  pom_properties="${module}/target/maven-archiver/pom.properties"
+  group_id=$(sed -n 's/^groupId=//p' "${pom_properties}")
+  descriptor_dir=$(mktemp -d)
+  mkdir -p "${descriptor_dir}/META-INF/maven/${group_id}/${artifact_id}"
+  cp "${pom_properties}" "${descriptor_dir}/META-INF/maven/${group_id}/${artifact_id}/"
+  jar uf "${DIST_DIR}/${artifact_id}-${VERSION}-javadoc.jar" -C "${descriptor_dir}" META-INF
+  rm -rf "${descriptor_dir}"
   cp "${module}/pom.xml" "${DIST_DIR}/${artifact_id}-${VERSION}.pom"
 done
 
