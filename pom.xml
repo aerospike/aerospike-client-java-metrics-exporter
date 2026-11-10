@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+         child.project.url.inherit.append.path="false">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.aerospike</groupId>
@@ -11,6 +12,42 @@
 
   <name>Aerospike Java Client Metrics Exporter</name>
   <description>Optional OpenTelemetry exporter for Aerospike Java client metrics.</description>
+  <url>https://github.com/aerospike/aerospike-client-java-metrics-exporter</url>
+
+  <organization>
+    <name>Aerospike Inc.</name>
+    <url>https://www.aerospike.com</url>
+  </organization>
+
+  <licenses>
+    <license>
+      <name>The Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Ashish Shaw</name>
+      <email>ashaw@aerospike.com</email>
+      <organization>Aerospike</organization>
+      <organizationUrl>https://www.aerospike.com</organizationUrl>
+    </developer>
+    <developer>
+      <name>Akshitha PV</name>
+      <email>akshithapv@aerospike.com</email>
+      <organization>Aerospike</organization>
+      <organizationUrl>https://www.aerospike.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm child.scm.connection.inherit.append.path="false"
+       child.scm.developerConnection.inherit.append.path="false"
+       child.scm.url.inherit.append.path="false">
+    <connection>scm:git:https://github.com/aerospike/aerospike-client-java-metrics-exporter.git</connection>
+    <developerConnection>scm:git:git@github.com:aerospike/aerospike-client-java-metrics-exporter.git</developerConnection>
+    <url>https://github.com/aerospike/aerospike-client-java-metrics-exporter</url>
+  </scm>
 
   <modules>
     <module>common</module>
@@ -29,6 +66,8 @@
     <maven.compiler.version>3.14.0</maven.compiler.version>
     <maven.enforcer.version>3.5.0</maven.enforcer.version>
     <maven.failsafe.version>3.5.3</maven.failsafe.version>
+    <maven.javadoc.version>3.12.0</maven.javadoc.version>
+    <maven.source.version>3.3.1</maven.source.version>
     <maven.surefire.version>3.5.3</maven.surefire.version>
     <skipITs>true</skipITs>
   </properties>
@@ -107,6 +146,33 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
           <version>${maven.enforcer.version}</version>
+        </plugin>
+        <!-- Maven Central requires a sources and a javadoc jar beside every published jar. -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>${maven.source.version}</version>
+          <executions>
+            <execution>
+              <id>attach-sources</id>
+              <goals>
+                <goal>jar-no-fork</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>${maven.javadoc.version}</version>
+          <executions>
+            <execution>
+              <id>attach-javadocs</id>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
       </plugins>
     </pluginManagement>
