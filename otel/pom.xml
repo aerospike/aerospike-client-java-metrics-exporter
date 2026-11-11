@@ -6,17 +6,17 @@
 
   <parent>
     <groupId>com.aerospike</groupId>
-    <artifactId>aerospike-client-metrics-exporter-parent</artifactId>
+    <artifactId>aerospike-client-java-metrics-exporter-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>aerospike-client-metrics-otel</artifactId>
-  <name>Aerospike Client Metrics OpenTelemetry Exporter</name>
+  <artifactId>aerospike-client-java-metrics-exporter-jdk21</artifactId>
+  <name>Aerospike Java Client Metrics OpenTelemetry Exporter (JDK 21)</name>
 
   <dependencies>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-metrics-common</artifactId>
+      <artifactId>aerospike-client-java-metrics-exporter-common-jdk21</artifactId>
     </dependency>
     <dependency>
       <groupId>com.aerospike</groupId>

@@ -6,7 +6,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.aerospike</groupId>
-  <artifactId>aerospike-client-metrics-exporter-parent</artifactId>
+  <artifactId>aerospike-client-java-metrics-exporter-parent</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
@@ -82,7 +82,7 @@
 
       <dependency>
         <groupId>com.aerospike</groupId>
-        <artifactId>aerospike-client-metrics-common</artifactId>
+        <artifactId>aerospike-client-java-metrics-exporter-common-jdk21</artifactId>
         <version>${project.version}</version>
       </dependency>
 
