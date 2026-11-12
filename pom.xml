@@ -50,7 +50,6 @@
   </scm>
 
   <modules>
-    <module>common</module>
     <module>otel</module>
     <module>examples</module>
   </modules>
@@ -78,12 +77,6 @@
         <groupId>com.aerospike</groupId>
         <artifactId>aerospike-client-jdk21</artifactId>
         <version>${aerospike.client.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.aerospike</groupId>
-        <artifactId>aerospike-client-java-metrics-exporter-common-jdk21</artifactId>
-        <version>${project.version}</version>
       </dependency>
 
       <dependency>

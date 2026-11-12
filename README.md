@@ -7,15 +7,14 @@ client and is not the server-side
 
 ## Modules
 
-- `common`: backend-neutral catalog, typed snapshot-to-point mapping,
-  attributes, validation, and per-client snapshot registry, published as
-  `aerospike-client-java-metrics-exporter-common-jdk21`. A future backend
-  can consume the same mapped points without duplicating snapshot traversal.
-- `otel`: `OpenTelemetryMetricsExporter`, published as the separate
-  `aerospike-client-java-metrics-exporter-jdk21` artifact.
+- `otel`: `OpenTelemetryMetricsExporter`, plus the backend-neutral metric
+  catalog, snapshot-to-point mapping, attributes, validation, and per-client
+  snapshot registry (package `com.aerospike.client.metrics.exporter.common`).
+  Published as the single `aerospike-client-java-metrics-exporter-jdk21`
+  artifact.
 - `examples`: customer-owned OTLP pipeline and Grafana demonstration.
 
-The `-jdk21` artifacts work with `aerospike-client-jdk21` and
+The `-jdk21` artifact works with `aerospike-client-jdk21` and
 `aerospike-client-bc-jdk21`.
 
 The Java adapter currently supports OpenTelemetry only. Prometheus or Mimir can

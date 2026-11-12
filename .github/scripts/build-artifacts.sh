@@ -14,7 +14,7 @@ set -euo pipefail
 
 : "${VERSION:?VERSION must be set}"
 
-MODULES=(common otel)
+MODULES=(otel)
 DIST_DIR=dist
 CLIENT_DIR="${RUNNER_TEMP:-target}/aerospike-client-java"
 

@@ -16,10 +16,6 @@
   <dependencies>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-java-metrics-exporter-common-jdk21</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.aerospike</groupId>
       <artifactId>aerospike-client-jdk21</artifactId>
       <scope>provided</scope>
     </dependency>
