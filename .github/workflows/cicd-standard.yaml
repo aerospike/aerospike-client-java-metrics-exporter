@@ -1,9 +1,10 @@
 name: CI/CD (artifacts)
 
 # Run manually with a commit on main to release it: builds that commit, publishes it to JFrog as the
-# VERSION file's version, creates its release bundle, promotes it to TEST and tags the commit v<VERSION>.
+# VERSION file's version, creates its release bundle, promotes it to DEV and tags the commit v<VERSION>.
 # Nothing is published on pushes or pull requests; ci.yaml builds and tests those.
-# Promotion beyond TEST is manual: promote-to-preview.yaml and promote-to-prod.yaml.
+# An engineer promotes DEV to TEST, then TEST to STAGE, with promote-release-bundle.yaml.
+# A product manager promotes STAGE to PROD in the JFrog UI. The repo token cannot do that.
 
 on:
   workflow_dispatch:
@@ -144,24 +145,6 @@ jobs:
       jf-bundle-name: aerospike-client-java-metrics-exporter
       version: ${{ needs.release-bundle.outputs.bundle-version }}
       target-stage: DEV
-      oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
-      oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
-
-  promote-test:
-    name: Promote to TEST
-    needs: [version, release-bundle, promote-dev]
-    permissions:
-      contents: read
-      attestations: write
-      id-token: write
-    uses: aerospike/shared-workflows/.github/workflows/reusable_promote-release-bundle.yaml@308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
-    with:
-      # Must match the ref in the uses: line above.
-      gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
-      jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-bundle-name: aerospike-client-java-metrics-exporter
-      version: ${{ needs.release-bundle.outputs.bundle-version }}
-      target-stage: TEST
       oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
       oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
 
