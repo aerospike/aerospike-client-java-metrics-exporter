@@ -4,24 +4,45 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>com.aerospike</groupId>
-    <artifactId>aerospike-client-java-metrics-exporter-parent</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-  </parent>
+  <groupId>com.aerospike</groupId>
+  <artifactId>aerospike-client-java-telemetry-exporter-example</artifactId>
+  <!-- Must match the version in otel/pom.xml. -->
+  <version>0.0.1-SNAPSHOT</version>
 
-  <artifactId>aerospike-client-java-metrics-exporter-example</artifactId>
-  <name>Aerospike Java Client Metrics Exporter Example</name>
+  <name>Aerospike Java Client Telemetry Exporter Example</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+
+    <aerospike.client.version>10.4.0</aerospike.client.version>
+    <opentelemetry.version>1.49.0</opentelemetry.version>
+
+    <maven.compiler.version>3.14.0</maven.compiler.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-java-metrics-exporter-jdk21</artifactId>
+      <artifactId>aerospike-client-java-telemetry-exporter</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.aerospike</groupId>
       <artifactId>aerospike-client-jdk21</artifactId>
+      <version>${aerospike.client.version}</version>
     </dependency>
     <dependency>
       <groupId>io.opentelemetry</groupId>
@@ -35,6 +56,18 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven.compiler.version}</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+          <compilerArgs>
+            <arg>-Xlint:all</arg>
+          </compilerArgs>
+          <failOnWarning>true</failOnWarning>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>

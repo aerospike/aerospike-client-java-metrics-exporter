@@ -65,7 +65,7 @@ runs:
         ARTIFACT_ID: ${{ inputs.artifact-id }}
       run: |
         repo=$(mvn -B -q -N help:evaluate -Dexpression=settings.localRepository -DforceStdout)
-        version=$(mvn -B -q -N help:evaluate -Dexpression=aerospike.client.version -DforceStdout)
+        version=$(mvn -B -q -f otel/pom.xml help:evaluate -Dexpression=aerospike.client.version -DforceStdout)
         jar="$repo/com/aerospike/$ARTIFACT_ID/$version/$ARTIFACT_ID-$version.jar"
         if ! unzip -l "$jar" com/aerospike/client/metrics/IMetricsExporter.class >/dev/null; then
           echo "::error::$jar has no IMetricsExporter, so it is not the pinned client build"

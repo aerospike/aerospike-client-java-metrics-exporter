@@ -4,19 +4,82 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>com.aerospike</groupId>
-    <artifactId>aerospike-client-java-metrics-exporter-parent</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-  </parent>
+  <groupId>com.aerospike</groupId>
+  <artifactId>aerospike-client-java-telemetry-exporter</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>jar</packaging>
 
-  <artifactId>aerospike-client-java-metrics-exporter-jdk21</artifactId>
-  <name>Aerospike Java Client Metrics OpenTelemetry Exporter (JDK 21)</name>
+  <name>Aerospike Java Client Telemetry Exporter</name>
+  <description>Optional OpenTelemetry exporter for Aerospike Java client metrics.</description>
+  <url>https://github.com/aerospike/aerospike-client-java-metrics-exporter</url>
+
+  <organization>
+    <name>Aerospike Inc.</name>
+    <url>https://www.aerospike.com</url>
+  </organization>
+
+  <licenses>
+    <license>
+      <name>The Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Ashish Shaw</name>
+      <email>ashaw@aerospike.com</email>
+      <organization>Aerospike</organization>
+      <organizationUrl>https://www.aerospike.com</organizationUrl>
+    </developer>
+    <developer>
+      <name>Akshitha PV</name>
+      <email>akshithapv@aerospike.com</email>
+      <organization>Aerospike</organization>
+      <organizationUrl>https://www.aerospike.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/aerospike/aerospike-client-java-metrics-exporter.git</connection>
+    <developerConnection>scm:git:git@github.com:aerospike/aerospike-client-java-metrics-exporter.git</developerConnection>
+    <url>https://github.com/aerospike/aerospike-client-java-metrics-exporter</url>
+  </scm>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+
+    <aerospike.client.version>10.4.0</aerospike.client.version>
+    <opentelemetry.version>1.49.0</opentelemetry.version>
+    <junit.version>5.12.2</junit.version>
+
+    <maven.compiler.version>3.14.0</maven.compiler.version>
+    <maven.enforcer.version>3.5.0</maven.enforcer.version>
+    <maven.failsafe.version>3.5.3</maven.failsafe.version>
+    <maven.javadoc.version>3.12.0</maven.javadoc.version>
+    <maven.source.version>3.3.1</maven.source.version>
+    <maven.surefire.version>3.5.3</maven.surefire.version>
+    <skipITs>true</skipITs>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
       <groupId>com.aerospike</groupId>
       <artifactId>aerospike-client-jdk21</artifactId>
+      <version>${aerospike.client.version}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -43,6 +106,7 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -51,15 +115,40 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven.compiler.version}</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+          <compilerArgs>
+            <arg>-Xlint:all</arg>
+          </compilerArgs>
+          <failOnWarning>true</failOnWarning>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.version}</version>
+        <configuration>
+          <useModulePath>false</useModulePath>
+          <includes>
+            <include>**/Test*.java</include>
+          </includes>
+          <excludedGroups>integration</excludedGroups>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${maven.failsafe.version}</version>
+        <configuration>
+          <skipITs>${skipITs}</skipITs>
+          <useModulePath>false</useModulePath>
+          <includes>
+            <include>**/Test*Integration.java</include>
+          </includes>
+          <groups>integration</groups>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -72,6 +161,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven.enforcer.version}</version>
         <executions>
           <execution>
             <id>exclude-prometheus-dependencies</id>
@@ -91,6 +181,42 @@
           </execution>
         </executions>
       </plugin>
+      <!-- Maven Central requires a sources and a javadoc jar beside every published jar. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>${maven.source.version}</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>${maven.javadoc.version}</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>integration-tests</id>
+      <properties>
+        <skipITs>false</skipITs>
+      </properties>
+    </profile>
+  </profiles>
 </project>

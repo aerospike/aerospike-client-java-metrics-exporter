@@ -1,6 +1,6 @@
 name: Promote release bundle
 
-# Promotes an aerospike-client-java-metrics-exporter release bundle from DEV to TEST, or through
+# Promotes an aerospike-client-java-telemetry-exporter release bundle from DEV to TEST, or through
 # TEST to STAGE. Choosing STAGE runs the TEST promotion first.
 # A product manager promotes STAGE to PROD in the JFrog UI. This repo's token cannot do that,
 # and reaching PROD is what publishes the jars to Maven Central.
@@ -38,7 +38,7 @@ jobs:
       # Must match the ref in the uses: line above.
       gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-bundle-name: aerospike-client-java-metrics-exporter
+      jf-bundle-name: aerospike-client-java-telemetry-exporter
       version: ${{ inputs.version }}
       target-stage: TEST
       dry-run: ${{ inputs.dry-run }}
@@ -58,7 +58,7 @@ jobs:
       # Must match the ref in the uses: line above.
       gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-bundle-name: aerospike-client-java-metrics-exporter
+      jf-bundle-name: aerospike-client-java-telemetry-exporter
       version: ${{ inputs.version }}
       target-stage: STAGE
       dry-run: ${{ inputs.dry-run }}

@@ -72,7 +72,7 @@ jobs:
           fi
           if [[ -n "${CLIENT_REF}" ]]; then
             echo "::error::Release ${version} would depend on the unreleased client commit ${CLIENT_REF}." \
-              "Set aerospike.client.version in pom.xml to a released client and clear CLIENT_REF first."
+              "Set aerospike.client.version in otel/pom.xml and examples/pom.xml to a released client and clear CLIENT_REF first."
             exit 1
           fi
           echo "Releasing ${source_sha} as ${version}"
@@ -93,7 +93,7 @@ jobs:
       # Must match the ref in the uses: line above.
       gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-build-name: aerospike-client-java-metrics-exporter
+      jf-build-name: aerospike-client-java-telemetry-exporter
       oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
       oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
       version: ${{ needs.version.outputs.version }}
@@ -121,7 +121,7 @@ jobs:
       # Must match the ref in the uses: line above.
       gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-bundle-name: aerospike-client-java-metrics-exporter
+      jf-bundle-name: aerospike-client-java-telemetry-exporter
       jf-build-names: ${{ needs.publish.outputs.jf-build-name }}:${{ needs.publish.outputs.jf-build-id }}
       version: ${{ needs.version.outputs.version }}
       jf-bundle-revision: auto
@@ -142,7 +142,7 @@ jobs:
       # Must match the ref in the uses: line above.
       gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-bundle-name: aerospike-client-java-metrics-exporter
+      jf-bundle-name: aerospike-client-java-telemetry-exporter
       version: ${{ needs.release-bundle.outputs.bundle-version }}
       target-stage: DEV
       oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}

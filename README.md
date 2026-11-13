@@ -10,11 +10,12 @@ client and is not the server-side
 - `otel`: `OpenTelemetryMetricsExporter`, plus the backend-neutral metric
   catalog, snapshot-to-point mapping, attributes, validation, and per-client
   snapshot registry (package `com.aerospike.client.metrics.exporter.common`).
-  Published as the single `aerospike-client-java-metrics-exporter-jdk21`
-  artifact.
-- `examples`: customer-owned OTLP pipeline and Grafana demonstration.
+  Published as the single `aerospike-client-java-telemetry-exporter`
+  artifact, with no parent POM.
+- `examples`: customer-owned OTLP pipeline and Grafana demonstration. Not
+  published.
 
-The `-jdk21` artifact works with `aerospike-client-jdk21` and
+The artifact works with `aerospike-client-jdk21` and
 `aerospike-client-bc-jdk21`.
 
 The Java adapter currently supports OpenTelemetry only. Prometheus or Mimir can
@@ -29,7 +30,7 @@ transport, gRPC, OkHttp, or Kotlin into an application.
 ```xml
 <dependency>
   <groupId>com.aerospike</groupId>
-  <artifactId>aerospike-client-java-metrics-exporter-jdk21</artifactId>
+  <artifactId>aerospike-client-java-telemetry-exporter</artifactId>
   <version>0.0.1-SNAPSHOT</version>
 </dependency>
 

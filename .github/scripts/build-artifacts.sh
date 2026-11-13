@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Build the Maven artifacts that the shared artifacts CI/CD workflow signs and
-# deploys to JFrog: the parent POM, plus the jar, sources jar, javadoc jar and
-# POM of each published module.
+# deploys to JFrog: the jar, sources jar, javadoc jar and POM of each published
+# module. Published modules have no parent POM, so nothing else is deployed.
 #
 # Environment:
-#   VERSION     Required. Maven version to publish, for example 0.0.1-pr10-1a2b3c4
+#   VERSION     Required. Maven version to publish, for example 0.0.1
 #   CLIENT_REF  Optional. aerospike-client-java commit to build and compile against.
-#               When unset, the released client named in pom.xml is used.
+#               When unset, the released client named in otel/pom.xml is used.
 #
-# The script rewrites the project version in every POM, so run it on a
+# The script rewrites the version in each published module's POM, so run it on a
 # throwaway checkout. Artifacts are written to dist/.
 set -euo pipefail
 
@@ -27,11 +27,13 @@ if [[ -n "${CLIENT_REF:-}" ]]; then
   git -C "${CLIENT_DIR}" checkout --quiet FETCH_HEAD
   mvn -B -ntp -f "${CLIENT_DIR}/pom.xml" -pl client -am install -DskipTests
 else
-  echo "Using the released client named in pom.xml"
+  echo "Using the released client named in otel/pom.xml"
 fi
 
 echo "Packaging version ${VERSION}"
-mvn -B -ntp versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false
+for module in "${MODULES[@]}"; do
+  mvn -B -ntp -f "${module}/pom.xml" versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false
+done
 module_list=$(
   IFS=,
   echo "${MODULES[*]}"
@@ -40,9 +42,6 @@ mvn -B -ntp -pl "${module_list}" -am package -DskipTests
 
 rm -rf "${DIST_DIR}"
 mkdir -p "${DIST_DIR}"
-
-parent_id=$(mvn -B -q -N help:evaluate -Dexpression=project.artifactId -DforceStdout)
-cp pom.xml "${DIST_DIR}/${parent_id}-${VERSION}.pom"
 
 for module in "${MODULES[@]}"; do
   jars=("${module}"/target/*-"${VERSION}".jar)
