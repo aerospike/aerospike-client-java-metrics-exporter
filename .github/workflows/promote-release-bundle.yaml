@@ -1,0 +1,66 @@
+name: Promote release bundle
+
+# Promotes an aerospike-client-java-metrics-exporter release bundle from DEV to TEST, or through
+# TEST to STAGE. Choosing STAGE runs the TEST promotion first.
+# A product manager promotes STAGE to PROD in the JFrog UI. This repo's token cannot do that,
+# and reaching PROD is what publishes the jars to Maven Central.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release bundle version, as printed by the "Release bundle" job of the release run (e.g. 0.0.1-12345678901-1)
+        required: true
+        type: string
+      target-stage:
+        description: Stop after this stage. STAGE includes the TEST promotion.
+        required: true
+        type: choice
+        options: [TEST, STAGE]
+        default: TEST
+      dry-run:
+        description: Only print the JFrog commands, do not promote
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  promote-test:
+    name: Promote to TEST
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    uses: aerospike/shared-workflows/.github/workflows/reusable_promote-release-bundle.yaml@308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+    with:
+      # Must match the ref in the uses: line above.
+      gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-bundle-name: aerospike-client-java-metrics-exporter
+      version: ${{ inputs.version }}
+      target-stage: TEST
+      dry-run: ${{ inputs.dry-run }}
+      oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
+      oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}
+
+  promote-stage:
+    name: Promote to STAGE
+    needs: promote-test
+    if: inputs.target-stage == 'STAGE'
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    uses: aerospike/shared-workflows/.github/workflows/reusable_promote-release-bundle.yaml@308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+    with:
+      # Must match the ref in the uses: line above.
+      gh-workflows-ref: 308f37e0cd5c7a6386a99ea7afc379d5a4ea9256 # v5.1.0
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-bundle-name: aerospike-client-java-metrics-exporter
+      version: ${{ inputs.version }}
+      target-stage: STAGE
+      dry-run: ${{ inputs.dry-run }}
+      oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}
+      oidc-audience: ${{ vars.JFROG_OIDC_AUDIENCE }}

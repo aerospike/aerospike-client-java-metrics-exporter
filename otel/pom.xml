@@ -6,18 +6,14 @@
 
   <parent>
     <groupId>com.aerospike</groupId>
-    <artifactId>aerospike-client-metrics-exporter-parent</artifactId>
+    <artifactId>aerospike-client-java-metrics-exporter-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>aerospike-client-metrics-otel</artifactId>
-  <name>Aerospike Client Metrics OpenTelemetry Exporter</name>
+  <artifactId>aerospike-client-java-metrics-exporter-jdk21</artifactId>
+  <name>Aerospike Java Client Metrics OpenTelemetry Exporter (JDK 21)</name>
 
   <dependencies>
-    <dependency>
-      <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-metrics-common</artifactId>
-    </dependency>
     <dependency>
       <groupId>com.aerospike</groupId>
       <artifactId>aerospike-client-jdk21</artifactId>
@@ -53,6 +49,14 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>

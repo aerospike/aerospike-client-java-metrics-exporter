@@ -6,17 +6,17 @@
 
   <parent>
     <groupId>com.aerospike</groupId>
-    <artifactId>aerospike-client-metrics-exporter-parent</artifactId>
+    <artifactId>aerospike-client-java-metrics-exporter-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>aerospike-client-metrics-example</artifactId>
-  <name>Aerospike Client Metrics Exporter Example</name>
+  <artifactId>aerospike-client-java-metrics-exporter-example</artifactId>
+  <name>Aerospike Java Client Metrics Exporter Example</name>
 
   <dependencies>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-metrics-otel</artifactId>
+      <artifactId>aerospike-client-java-metrics-exporter-jdk21</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
