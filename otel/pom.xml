@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.aerospike</groupId>
-  <artifactId>aerospike-client-java-telemetry-exporter</artifactId>
+  <artifactId>test-aerospike-client-java-telemetry-exporter</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 

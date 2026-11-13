@@ -36,7 +36,7 @@
   <dependencies>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-java-telemetry-exporter</artifactId>
+      <artifactId>test-aerospike-client-java-telemetry-exporter</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
