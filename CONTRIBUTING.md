@@ -75,7 +75,7 @@ The following PR title patterns bypass **both** commitlint type validation and t
 
 #### Enforcement
 
-This is enforced by the `pr-hygiene.yml` workflow which must pass before merge.
+This is enforced by the `pr-hygiene.yaml` workflow which must pass before merge.
 See the [pr-hygiene documentation](https://github.com/aerospike/shared-workflows/blob/main/.github/workflows/pr-hygiene/README.md)
 for the full regex and configuration details.
 

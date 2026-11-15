@@ -4,7 +4,7 @@ services:
     container_name: aerospike-metrics-example-otel-collector
     command: [--config=/etc/otelcol-contrib/config.yaml]
     volumes:
-      - ./otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
       - 4317:4317
       - 4318:4318
@@ -15,10 +15,10 @@ services:
     image: prom/prometheus:v3.14.0
     container_name: aerospike-metrics-example-prometheus
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
+      - --config.file=/etc/prometheus/prometheus.yaml
       - --storage.tsdb.path=/prometheus
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
       - prometheus-data:/prometheus
     ports:
       - 9091:9090
