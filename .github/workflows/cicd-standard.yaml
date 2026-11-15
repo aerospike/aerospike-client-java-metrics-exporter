@@ -1,7 +1,8 @@
 name: CI/CD (artifacts)
 
 # Run manually with a commit on main to release it: builds that commit, publishes it to JFrog as the
-# VERSION file's version, creates its release bundle, promotes it to DEV and tags the commit v<VERSION>.
+# VERSION file's version, creates release bundle aerospike-client-java-telemetry-exporter <VERSION>,
+# promotes it to DEV and tags the commit v<VERSION>.
 # Nothing is published on pushes or pull requests; ci.yaml builds and tests those.
 # An engineer promotes DEV to TEST, then TEST to STAGE, with promote-release-bundle.yaml.
 # A product manager promotes STAGE to PROD in the JFrog UI. The repo token cannot do that.
@@ -124,7 +125,6 @@ jobs:
       jf-bundle-name: aerospike-client-java-telemetry-exporter
       jf-build-names: ${{ needs.publish.outputs.jf-build-name }}:${{ needs.publish.outputs.jf-build-id }}
       version: ${{ needs.version.outputs.version }}
-      jf-bundle-revision: auto
       # Uploaded by the publish deploy job under its default name; marks the bundle as a multi-module Maven release.
       gh-bundle-metadata-artifact-name: bundle-metadata
       oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER }}

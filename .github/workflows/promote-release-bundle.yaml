@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release bundle version, as printed by the "Release bundle" job of the release run (e.g. 0.0.1-12345678901-1)
+        description: Released version, the VERSION file's value at release (e.g. 0.0.1)
         required: true
         type: string
       target-stage:
