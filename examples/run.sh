@@ -13,7 +13,7 @@ APP_PID=""
 COMPOSE=(
   docker compose
   --project-name "${COMPOSE_PROJECT}"
-  --file "${STACK_DIR}/docker-compose.yml"
+  --file "${STACK_DIR}/docker-compose.yaml"
 )
 MAVEN=(mvn)
 

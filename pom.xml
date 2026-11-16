@@ -4,116 +4,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <!-- Builds the modules together. Not a parent and never published: otel/pom.xml stands alone. -->
   <groupId>com.aerospike</groupId>
-  <artifactId>aerospike-client-metrics-exporter-parent</artifactId>
+  <artifactId>aerospike-client-java-telemetry-exporter-build</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>Aerospike Java Client Metrics Exporter</name>
-  <description>Optional OpenTelemetry exporter for Aerospike Java client metrics.</description>
+  <name>Aerospike Java Client Telemetry Exporter (build)</name>
 
   <modules>
-    <module>common</module>
     <module>otel</module>
     <module>examples</module>
   </modules>
-
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>21</maven.compiler.release>
-
-    <aerospike.client.version>10.4.0</aerospike.client.version>
-    <opentelemetry.version>1.49.0</opentelemetry.version>
-    <junit.version>5.12.2</junit.version>
-
-    <maven.compiler.version>3.14.0</maven.compiler.version>
-    <maven.enforcer.version>3.5.0</maven.enforcer.version>
-    <maven.failsafe.version>3.5.3</maven.failsafe.version>
-    <maven.surefire.version>3.5.3</maven.surefire.version>
-    <skipITs>true</skipITs>
-  </properties>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.aerospike</groupId>
-        <artifactId>aerospike-client-jdk21</artifactId>
-        <version>${aerospike.client.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.aerospike</groupId>
-        <artifactId>aerospike-client-metrics-common</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.opentelemetry</groupId>
-        <artifactId>opentelemetry-bom</artifactId>
-        <version>${opentelemetry.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter</artifactId>
-        <version>${junit.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
-  <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>${maven.compiler.version}</version>
-          <configuration>
-            <release>${maven.compiler.release}</release>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <version>${maven.surefire.version}</version>
-          <configuration>
-            <useModulePath>false</useModulePath>
-            <includes>
-              <include>**/Test*.java</include>
-            </includes>
-            <excludedGroups>integration</excludedGroups>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-failsafe-plugin</artifactId>
-          <version>${maven.failsafe.version}</version>
-          <configuration>
-            <skipITs>${skipITs}</skipITs>
-            <useModulePath>false</useModulePath>
-            <includes>
-              <include>**/Test*Integration.java</include>
-            </includes>
-            <groups>integration</groups>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-enforcer-plugin</artifactId>
-          <version>${maven.enforcer.version}</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
-
-  <profiles>
-    <profile>
-      <id>integration-tests</id>
-      <properties>
-        <skipITs>false</skipITs>
-      </properties>
-    </profile>
-  </profiles>
 </project>

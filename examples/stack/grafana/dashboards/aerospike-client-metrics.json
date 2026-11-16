@@ -1,234 +1,429 @@
 {
-  "annotations": {
-    "list": []
-  },
-  "editable": true,
-  "graphTooltip": 1,
-  "id": null,
-  "links": [],
-  "panels": [
-    {
-      "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
-      "id": 1,
-      "panels": [],
-      "title": "Standard metrics",
-      "type": "row"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "All standard global gauges, compared by export path.",
-      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 1},
-      "id": 2,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "aerospike_client_total_nodes{job=~\"$job\"}", "legendFormat": "nodes · {{client_id}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "aerospike_client_open_connections{job=~\"$job\"}", "legendFormat": "open connections · {{client_id}} · {{job}}", "refId": "B"},
-        {"editorMode": "code", "expr": "aerospike_client_recover_queue_size{job=~\"$job\"}", "legendFormat": "recover queue · {{client_id}} · {{job}}", "refId": "C"}
-      ],
-      "title": "Global gauges",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "Per-second rates for every standard global counter. The Collector normalizes exceeded_total_timeout to exceeded_timeout.",
-      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 1},
-      "id": 3,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "rate(aerospike_client_invalid_node_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "invalid nodes · {{client_id}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_retry_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "retries · {{client_id}} · {{job}}", "refId": "B"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_delay_queue_timeout_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "delay queue timeouts · {{client_id}} · {{job}}", "refId": "C"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_max_retries_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded max retries · {{client_id}} · {{job}}", "refId": "D"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_total_timeout_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded total timeout · {{client_id}} · {{job}}", "refId": "E"},
-        {"editorMode": "code", "expr": "rate(aerospike_client_exceeded_timeout_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "exceeded total timeout · {{client_id}} · {{job}}", "refId": "F"}
-      ],
-      "title": "Global event rates",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "All standard per-node connection gauges, split into sync and async pools.",
-      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
-      "id": 4,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (aerospike_client_node_connections_in_use{job=~\"$job\"})", "legendFormat": "in use · {{conn_type}} · {{client_id}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (aerospike_client_node_connections_in_pool{job=~\"$job\"})", "legendFormat": "in pool · {{conn_type}} · {{client_id}} · {{job}}", "refId": "B"}
-      ],
-      "title": "Node connection gauges",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "All standard per-node connection counters as per-second rates.",
-      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
-      "id": 5,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (rate(aerospike_client_node_connections_opened_total{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "opened · {{conn_type}} · {{client_id}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, client_id, conn_type) (rate(aerospike_client_node_connections_closed_total{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "closed · {{conn_type}} · {{client_id}} · {{job}}", "refId": "B"}
-      ],
-      "title": "Node connection churn",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 17},
-      "id": 6,
-      "panels": [],
-      "title": "Operational metrics",
-      "type": "row"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "Extended client process CPU utilization.",
-      "fieldConfig": {"defaults": {"unit": "percent"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 18},
-      "id": 7,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "aerospike_client_cpu_percent{job=~\"$job\"}", "legendFormat": "{{client_id}} · {{job}}", "refId": "A"}
-      ],
-      "title": "Process CPU",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "Extended client process memory usage.",
-      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 18},
-      "id": 8,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "aerospike_client_memory_bytes{job=~\"$job\"}", "legendFormat": "{{client_id}} · {{job}}", "refId": "A"}
-      ],
-      "title": "Process memory",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "Extended total client command counter as a per-second rate.",
-      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 18},
-      "id": 9,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "rate(aerospike_client_command_count_total{job=~\"$job\"}[$__rate_interval])", "legendFormat": "{{client_id}} · {{job}}", "refId": "A"}
-      ],
-      "title": "Client command rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "All extended namespace outcome counters as per-second rates.",
-      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
-      "id": 10,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_errors_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "errors · {{namespace}} · {{client_id}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_client_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]) + rate(aerospike_client_namespace_server_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "timeouts · {{namespace}} · {{client_id}} · {{job}}", "refId": "B"},
-        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_key_busy_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "key busy · {{namespace}} · {{client_id}} · {{job}}", "refId": "C"}
-      ],
-      "title": "Namespace outcome rates",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "All extended namespace byte counters as per-second throughput.",
-      "fieldConfig": {"defaults": {"unit": "Bps"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
-      "id": 11,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_bytes_in_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "in · {{namespace}} · {{client_id}} · {{job}}", "refId": "A"},
-        {"editorMode": "code", "expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_bytes_out_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))", "legendFormat": "out · {{namespace}} · {{client_id}} · {{job}}", "refId": "B"}
-      ],
-      "title": "Namespace throughput",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
-      "id": 12,
-      "panels": [],
-      "title": "Latency histograms (OpenTelemetry path)",
-      "type": "row"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "P95 RPC latency exported through OpenTelemetry, grouped by operation.",
-      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
-      "id": 13,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, namespace, latency_type, le) (rate(aerospike_client_namespace_latency_bucket_total{job=\"aerospike-client-via-otel\", namespace=~\"$namespace\"}[$__rate_interval])))", "legendFormat": "{{latency_type}} · {{namespace}} · {{client_id}}", "refId": "A"}
-      ],
-      "title": "P95 latency by operation",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-      "description": "P95 whole-call latency exported through OpenTelemetry, grouped by operation.",
-      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
-      "id": 14,
-      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (client_id, latency_type, le) (rate(aerospike_client_latency_bucket_total{job=\"aerospike-client-via-otel\"}[$__rate_interval])))", "legendFormat": "{{latency_type}} · {{client_id}}", "refId": "A"}
-      ],
-      "title": "P95 whole-call latency",
-      "type": "timeseries"
-    }
-  ],
-  "refresh": "5s",
-  "schemaVersion": 41,
-  "tags": [
-    "aerospike",
-    "example"
-  ],
-  "templating": {
-    "list": [
-      {
-        "allValue": ".*",
-        "current": {"text": "All", "value": "$__all"},
-        "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-        "definition": "label_values(aerospike_client_total_nodes, job)",
-        "includeAll": true,
-        "label": "Export path",
-        "multi": true,
-        "name": "job",
-        "query": {"query": "label_values(aerospike_client_total_nodes, job)", "refId": "PrometheusVariableQueryEditor-VariableQuery"},
-        "refresh": 1,
-        "type": "query"
-      },
-      {
-        "allValue": ".*",
-        "current": {"text": "All", "value": "$__all"},
-        "datasource": {"type": "prometheus", "uid": "example-prometheus"},
-        "definition": "label_values(aerospike_client_namespace_errors_total, namespace)",
-        "includeAll": true,
-        "label": "Namespace",
-        "multi": true,
-        "name": "namespace",
-        "query": {"query": "label_values(aerospike_client_namespace_errors_total, namespace)", "refId": "PrometheusVariableQueryEditor-VariableQuery"},
-        "refresh": 1,
-        "type": "query"
-      }
-    ]
-  },
-  "time": {
-    "from": "now-15m",
-    "to": "now"
-  },
-  "timezone": "browser",
-  "title": "Aerospike Java Client Metrics",
-  "uid": "aerospike-client-metrics-example",
-  "version": 2
+	"annotations": {
+		"list": []
+	},
+	"editable": true,
+	"graphTooltip": 1,
+	"id": null,
+	"links": [],
+	"panels": [
+		{
+			"collapsed": false,
+			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+			"id": 1,
+			"panels": [],
+			"title": "Standard metrics",
+			"type": "row"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "All standard global gauges, compared by export path.",
+			"fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+			"id": 2,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "aerospike_client_total_nodes{job=~\"$job\"}",
+					"legendFormat": "nodes · {{client_id}} · {{job}}",
+					"refId": "A"
+				},
+				{
+					"editorMode": "code",
+					"expr": "aerospike_client_open_connections{job=~\"$job\"}",
+					"legendFormat": "open connections · {{client_id}} · {{job}}",
+					"refId": "B"
+				},
+				{
+					"editorMode": "code",
+					"expr": "aerospike_client_recover_queue_size{job=~\"$job\"}",
+					"legendFormat": "recover queue · {{client_id}} · {{job}}",
+					"refId": "C"
+				}
+			],
+			"title": "Global gauges",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "Per-second rates for every standard global counter. The Collector normalizes exceeded_total_timeout to exceeded_timeout.",
+			"fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+			"id": 3,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "rate(aerospike_client_invalid_node_count_total{job=~\"$job\"}[$__rate_interval])",
+					"legendFormat": "invalid nodes · {{client_id}} · {{job}}",
+					"refId": "A"
+				},
+				{
+					"editorMode": "code",
+					"expr": "rate(aerospike_client_retry_count_total{job=~\"$job\"}[$__rate_interval])",
+					"legendFormat": "retries · {{client_id}} · {{job}}",
+					"refId": "B"
+				},
+				{
+					"editorMode": "code",
+					"expr": "rate(aerospike_client_delay_queue_timeout_count_total{job=~\"$job\"}[$__rate_interval])",
+					"legendFormat": "delay queue timeouts · {{client_id}} · {{job}}",
+					"refId": "C"
+				},
+				{
+					"editorMode": "code",
+					"expr": "rate(aerospike_client_exceeded_max_retries_total{job=~\"$job\"}[$__rate_interval])",
+					"legendFormat": "exceeded max retries · {{client_id}} · {{job}}",
+					"refId": "D"
+				},
+				{
+					"editorMode": "code",
+					"expr": "rate(aerospike_client_exceeded_total_timeout_total{job=~\"$job\"}[$__rate_interval])",
+					"legendFormat": "exceeded total timeout · {{client_id}} · {{job}}",
+					"refId": "E"
+				},
+				{
+					"editorMode": "code",
+					"expr": "rate(aerospike_client_exceeded_timeout_total{job=~\"$job\"}[$__rate_interval])",
+					"legendFormat": "exceeded total timeout · {{client_id}} · {{job}}",
+					"refId": "F"
+				}
+			],
+			"title": "Global event rates",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "All standard per-node connection gauges, split into sync and async pools.",
+			"fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+			"id": 4,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, conn_type) (aerospike_client_node_connections_in_use{job=~\"$job\"})",
+					"legendFormat": "in use · {{conn_type}} · {{client_id}} · {{job}}",
+					"refId": "A"
+				},
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, conn_type) (aerospike_client_node_connections_in_pool{job=~\"$job\"})",
+					"legendFormat": "in pool · {{conn_type}} · {{client_id}} · {{job}}",
+					"refId": "B"
+				}
+			],
+			"title": "Node connection gauges",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "All standard per-node connection counters as per-second rates.",
+			"fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+			"id": 5,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, conn_type) (rate(aerospike_client_node_connections_opened_total{job=~\"$job\"}[$__rate_interval]))",
+					"legendFormat": "opened · {{conn_type}} · {{client_id}} · {{job}}",
+					"refId": "A"
+				},
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, conn_type) (rate(aerospike_client_node_connections_closed_total{job=~\"$job\"}[$__rate_interval]))",
+					"legendFormat": "closed · {{conn_type}} · {{client_id}} · {{job}}",
+					"refId": "B"
+				}
+			],
+			"title": "Node connection churn",
+			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+			"id": 6,
+			"panels": [],
+			"title": "Operational metrics",
+			"type": "row"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "Extended client process CPU utilization.",
+			"fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+			"gridPos": { "h": 7, "w": 8, "x": 0, "y": 18 },
+			"id": 7,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "aerospike_client_cpu_percent{job=~\"$job\"}",
+					"legendFormat": "{{client_id}} · {{job}}",
+					"refId": "A"
+				}
+			],
+			"title": "Process CPU",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "Extended client process memory usage.",
+			"fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+			"gridPos": { "h": 7, "w": 8, "x": 8, "y": 18 },
+			"id": 8,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "aerospike_client_memory_bytes{job=~\"$job\"}",
+					"legendFormat": "{{client_id}} · {{job}}",
+					"refId": "A"
+				}
+			],
+			"title": "Process memory",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "Extended total client command counter as a per-second rate.",
+			"fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+			"gridPos": { "h": 7, "w": 8, "x": 16, "y": 18 },
+			"id": 9,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "rate(aerospike_client_command_count_total{job=~\"$job\"}[$__rate_interval])",
+					"legendFormat": "{{client_id}} · {{job}}",
+					"refId": "A"
+				}
+			],
+			"title": "Client command rate",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "All extended namespace outcome counters as per-second rates.",
+			"fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+			"id": 10,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_errors_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))",
+					"legendFormat": "errors · {{namespace}} · {{client_id}} · {{job}}",
+					"refId": "A"
+				},
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_client_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]) + rate(aerospike_client_namespace_server_timeouts_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))",
+					"legendFormat": "timeouts · {{namespace}} · {{client_id}} · {{job}}",
+					"refId": "B"
+				},
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_key_busy_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))",
+					"legendFormat": "key busy · {{namespace}} · {{client_id}} · {{job}}",
+					"refId": "C"
+				}
+			],
+			"title": "Namespace outcome rates",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "All extended namespace byte counters as per-second throughput.",
+			"fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+			"id": 11,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_bytes_in_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))",
+					"legendFormat": "in · {{namespace}} · {{client_id}} · {{job}}",
+					"refId": "A"
+				},
+				{
+					"editorMode": "code",
+					"expr": "sum by (job, client_id, namespace) (rate(aerospike_client_namespace_bytes_out_total{job=~\"$job\", namespace=~\"$namespace\"}[$__rate_interval]))",
+					"legendFormat": "out · {{namespace}} · {{client_id}} · {{job}}",
+					"refId": "B"
+				}
+			],
+			"title": "Namespace throughput",
+			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+			"id": 12,
+			"panels": [],
+			"title": "Latency histograms (OpenTelemetry path)",
+			"type": "row"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "P95 RPC latency exported through OpenTelemetry, grouped by operation.",
+			"fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+			"id": 13,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "histogram_quantile(0.95, sum by (client_id, namespace, latency_type, le) (rate(aerospike_client_namespace_latency_bucket_total{job=\"aerospike-client-via-otel\", namespace=~\"$namespace\"}[$__rate_interval])))",
+					"legendFormat": "{{latency_type}} · {{namespace}} · {{client_id}}",
+					"refId": "A"
+				}
+			],
+			"title": "P95 latency by operation",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+			"description": "P95 whole-call latency exported through OpenTelemetry, grouped by operation.",
+			"fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+			"id": 14,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": { "mode": "multi", "sort": "desc" }
+			},
+			"targets": [
+				{
+					"editorMode": "code",
+					"expr": "histogram_quantile(0.95, sum by (client_id, latency_type, le) (rate(aerospike_client_latency_bucket_total{job=\"aerospike-client-via-otel\"}[$__rate_interval])))",
+					"legendFormat": "{{latency_type}} · {{client_id}}",
+					"refId": "A"
+				}
+			],
+			"title": "P95 whole-call latency",
+			"type": "timeseries"
+		}
+	],
+	"refresh": "5s",
+	"schemaVersion": 41,
+	"tags": ["aerospike", "example"],
+	"templating": {
+		"list": [
+			{
+				"allValue": ".*",
+				"current": { "text": "All", "value": "$__all" },
+				"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+				"definition": "label_values(aerospike_client_total_nodes, job)",
+				"includeAll": true,
+				"label": "Export path",
+				"multi": true,
+				"name": "job",
+				"query": {
+					"query": "label_values(aerospike_client_total_nodes, job)",
+					"refId": "PrometheusVariableQueryEditor-VariableQuery"
+				},
+				"refresh": 1,
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": { "text": "All", "value": "$__all" },
+				"datasource": { "type": "prometheus", "uid": "example-prometheus" },
+				"definition": "label_values(aerospike_client_namespace_errors_total, namespace)",
+				"includeAll": true,
+				"label": "Namespace",
+				"multi": true,
+				"name": "namespace",
+				"query": {
+					"query": "label_values(aerospike_client_namespace_errors_total, namespace)",
+					"refId": "PrometheusVariableQueryEditor-VariableQuery"
+				},
+				"refresh": 1,
+				"type": "query"
+			}
+		]
+	},
+	"time": {
+		"from": "now-15m",
+		"to": "now"
+	},
+	"timezone": "browser",
+	"title": "Aerospike Java Client Metrics",
+	"uid": "aerospike-client-metrics-example",
+	"version": 2
 }
