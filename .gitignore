@@ -35,6 +35,13 @@ dist/
 build/
 *.log
 
+# Certificate and key material
+*.pem
+*.crt
+*.csr
+*.key
+*.srl
+
 # Dependency directories
 node_modules/
 vendor/

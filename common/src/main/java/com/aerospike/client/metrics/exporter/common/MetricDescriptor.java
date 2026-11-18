@@ -15,9 +15,10 @@ public final class MetricDescriptor {
     /**
      * Backend-neutral metric behavior.
      *
-     * <p>Cumulative buckets are mapped to observable counters by OTel. A
-     * future Prometheus adapter can map the same points to histogram bucket
-     * families without changing snapshot traversal.</p>
+     * <p>Cumulative buckets are mapped to observable counters by OTel. The
+     * generic OTel-to-Prometheus reader preserves them as counters; producing
+     * true Prometheus histogram families requires a future direct snapshot
+     * converter.</p>
      */
     public enum Type {
         GAUGE,

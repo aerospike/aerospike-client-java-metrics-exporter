@@ -30,7 +30,11 @@ final class TestSnapshots {
     }
 
     static MetricsSnapshot disabled() {
-        return create("primary", false, true, true, 100L, List.of());
+        return disabled(100L);
+    }
+
+    static MetricsSnapshot disabled(long commandCount) {
+        return create("primary", false, true, true, commandCount, List.of());
     }
 
     static MetricsSnapshot forClient(String clientId, long commandCount) {
@@ -67,11 +71,17 @@ final class TestSnapshots {
         labels.put("client_type", "customer-type");
         labels.put("client_version", "customer-version");
         labels.put("app_id", "customer-app");
+        labels.put("team", "payments");
+        labels.put("feature", "customer-feature");
         labels.put("node", "customer-node");
         labels.put("node_address", "customer-address");
         labels.put("node_port", "1");
+        labels.put("server_node_id", "customer-server-node");
+        labels.put("server_node_address", "customer-server-address");
+        labels.put("server_node_port", "2");
         labels.put("conn_type", "customer-connection");
         labels.put("namespace", "customer-namespace");
+        labels.put("ns", "customer-ns");
         labels.put("latency_type", "customer-latency");
         labels.put("latency_unit", "customer-unit");
         labels.put("le", "customer-bound");

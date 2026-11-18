@@ -46,7 +46,7 @@ class TestOpenTelemetryMetricsExporterIntegration {
             Thread.sleep(500);
 
             assertTrue(reader.collectAllMetrics().stream().anyMatch(
-                metric -> "aerospike_client_total_nodes".equals(metric.getName())
+                metric -> "aerospike.client.cluster.total_nodes".equals(metric.getName())
             ));
 
             client.disableMetrics();

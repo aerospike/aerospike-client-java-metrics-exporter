@@ -17,17 +17,16 @@ import com.aerospike.client.metrics.NodeMetricsSnapshot;
 /**
  * Builds deterministic backend-neutral attributes from a snapshot.
  */
-//todo: prefix with as_client
 public final class SnapshotAttributes {
     public static final String CLUSTER = "cluster";
     public static final String CLIENT_TYPE = "client_type";
     public static final String CLIENT_VERSION = "client_version";
     public static final String APP_ID = "app_id";
-    public static final String NODE = "node";
-    public static final String NODE_ADDRESS = "node_address";
-    public static final String NODE_PORT = "node_port";
+    public static final String NODE = "server_node_id";
+    public static final String NODE_ADDRESS = "server_node_address";
+    public static final String NODE_PORT = "server_node_port";
     public static final String CONNECTION_TYPE = "conn_type";
-    public static final String NAMESPACE = "namespace";
+    public static final String NAMESPACE = "ns";
     public static final String LATENCY_TYPE = "latency_type";
     public static final String LATENCY_UNIT = "latency_unit";
     public static final String BUCKET_BOUND = "le";
@@ -38,10 +37,15 @@ public final class SnapshotAttributes {
         CLIENT_TYPE,
         CLIENT_VERSION,
         APP_ID,
+        "node",
         NODE,
+        "node_address",
         NODE_ADDRESS,
+        "node_port",
         NODE_PORT,
         CONNECTION_TYPE,
+        "feature",
+        "namespace",
         NAMESPACE,
         LATENCY_TYPE,
         LATENCY_UNIT,
@@ -56,6 +60,11 @@ public final class SnapshotAttributes {
      * Exporter-owned identity fields take precedence over customer labels.
      */
     public static Map<String, String> global(MetricsSnapshot snapshot) {
+        // TODO: Evaluate adding client_app_ip to every series for Python parity.
+        // Prefer a customer-provided value. Automatic default-route discovery may
+        // expose an unsuitable container/pod address, increase cardinality, and is
+        // not currently required by the exporter tech spec.
+        // https://github.com/aerospike/aerospike-client-python-telemetry-exporter/blob/d345029cfc8ccbac412f0a8de39ddce6738232b9/aerospike_client_telemetry/common/catalog.py#L450-L469
         Map<String, String> attributes = new LinkedHashMap<String, String>();
         if (snapshot.labels != null) {
             attributes.putAll(new TreeMap<String, String>(snapshot.labels));

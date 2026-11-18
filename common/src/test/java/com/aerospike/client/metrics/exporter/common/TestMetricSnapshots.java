@@ -100,6 +100,117 @@ final class TestMetricSnapshots {
         );
     }
 
+    static MetricsSnapshot withNodeNames(
+            List<String> activeNames,
+            List<String> departedNames
+    ) {
+        MetricsSnapshot base = create(true, true, true);
+        return withNodes(
+            base,
+            activeNames.stream().map(TestMetricSnapshots::node).toList(),
+            departedNames.stream().map(TestMetricSnapshots::node).toList()
+        );
+    }
+
+    static MetricsSnapshot withNamespaceNames(String... names) {
+        MetricsSnapshot base = create(true, true, true);
+        List<NamespaceMetricsSnapshot> namespaces = java.util.Arrays.stream(names)
+            .map(TestMetricSnapshots::namespace)
+            .toList();
+        NodeMetricsSnapshot active = node("N1", namespaces);
+        return withNodes(base, List.of(active), List.of());
+    }
+
+    static MetricsSnapshot withLatencyShift(int shift) {
+        MetricsSnapshot base = create(true, true, true);
+        return copy(base, base.nodes, base.nodesDeparted, shift);
+    }
+
+    private static MetricsSnapshot withNodes(
+            MetricsSnapshot base,
+            List<NodeMetricsSnapshot> active,
+            List<NodeMetricsSnapshot> departed
+    ) {
+        return copy(base, active, departed, base.latencyShift);
+    }
+
+    private static MetricsSnapshot copy(
+            MetricsSnapshot base,
+            List<NodeMetricsSnapshot> active,
+            List<NodeMetricsSnapshot> departed,
+            int latencyShift
+    ) {
+        return new MetricsSnapshot(
+            base.timestamp,
+            base.metricsEnabled,
+            base.operationalMetricsEnabled,
+            base.usageMetricsEnabled,
+            base.clusterName,
+            base.clientType,
+            base.clientVersion,
+            base.appId,
+            base.labels,
+            base.totalNodes,
+            base.recoverQueueSize,
+            base.invalidNodeCount,
+            base.delayQueueTimeoutCount,
+            base.openConnections,
+            base.commandCount,
+            base.commandRetries,
+            base.batchPartialFailure,
+            base.exceededMaxRetries,
+            base.exceededTotalTimeout,
+            base.cpuPercent,
+            base.memoryBytes,
+            base.readLatency,
+            base.writeLatency,
+            base.batchLatency,
+            base.queryLatency,
+            base.validationOpenFailure,
+            base.validationTlsFailure,
+            base.validationAuthFailure,
+            base.eventLoops,
+            active,
+            departed,
+            base.usage,
+            base.latencyUnit,
+            base.latencyColumns,
+            latencyShift
+        );
+    }
+
+    private static NodeMetricsSnapshot node(String name) {
+        return node(name, List.of());
+    }
+
+    private static NodeMetricsSnapshot node(
+            String name,
+            List<NamespaceMetricsSnapshot> namespaces
+    ) {
+        ConnectionMetricsSnapshot connections =
+            new ConnectionMetricsSnapshot(1, 1, 2, 1);
+        return new NodeMetricsSnapshot(
+            name,
+            "127.0.0.1",
+            3000,
+            connections,
+            connections,
+            2,
+            latency(LatencyType.CONN, 1, 0, 0, 0),
+            0,
+            0,
+            0,
+            namespaces
+        );
+    }
+
+    private static NamespaceMetricsSnapshot namespace(String name) {
+        return new NamespaceMetricsSnapshot(
+            name, 7, 2, 3, 1, 4, 5, 100, 200,
+            null, null, null, null
+        );
+    }
+
     private static LatencySnapshot latency(LatencyType type, long... buckets) {
         long count = 0L;
         for (long bucket : buckets) {

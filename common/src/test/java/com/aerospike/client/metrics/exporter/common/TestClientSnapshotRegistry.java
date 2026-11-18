@@ -6,7 +6,7 @@
 package com.aerospike.client.metrics.exporter.common;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
@@ -44,7 +44,7 @@ class TestClientSnapshotRegistry {
     }
 
     @Test
-    void storesImmutableSnapshotsDirectlyPerClient() {
+    void storesExporterOwnedCopiesPerClient() {
         ClientSnapshotRegistry registry = new ClientSnapshotRegistry();
         MetricsSnapshot primary = snapshot(labels("primary"), true, 1);
 
@@ -53,9 +53,62 @@ class TestClientSnapshotRegistry {
 
         assertEquals(2, registry.size());
         MetricsSnapshot retained = find(registry.currentSnapshots(), "primary");
-        assertSame(primary, retained);
+        assertNotSame(primary, retained);
         assertEquals(1, retained.commandRetries);
         assertEquals(2, find(registry.currentSnapshots(), "reporting").commandRetries);
+    }
+
+    @Test
+    void clientOwnedLabelsCannotChangeRetainedSnapshot() {
+        ClientSnapshotRegistry registry = new ClientSnapshotRegistry();
+        Map<String, String> mutableLabels = labels("primary");
+        MetricsSnapshot clientOwned =
+            snapshot(mutableLabels, true, 1);
+
+        registry.update(clientOwned);
+        mutableLabels.put("service", "mutated-after-export");
+        mutableLabels.put("new_label", "not-retained");
+
+        MetricsSnapshot retained = find(registry.currentSnapshots(), "primary");
+        assertEquals("orders", retained.labels.get("service"));
+        assertEquals(false, retained.labels.containsKey("new_label"));
+        assertThrows(
+            UnsupportedOperationException.class,
+            () -> retained.labels.put("other", "value")
+        );
+    }
+
+    @Test
+    void deepCopiesEveryNestedSnapshotGraph() {
+        ClientSnapshotRegistry registry = new ClientSnapshotRegistry();
+        MetricsSnapshot clientOwned = TestMetricSnapshots.create(true, true);
+
+        registry.update(clientOwned);
+
+        MetricsSnapshot retained =
+            find(registry.currentSnapshots(), "primary");
+        assertNotSame(clientOwned, retained);
+        assertNotSame(clientOwned.readLatency, retained.readLatency);
+        assertNotSame(clientOwned.eventLoops, retained.eventLoops);
+        assertNotSame(
+            clientOwned.eventLoops.get(0),
+            retained.eventLoops.get(0)
+        );
+        assertNotSame(clientOwned.nodes, retained.nodes);
+        assertNotSame(clientOwned.nodes.get(0), retained.nodes.get(0));
+        assertNotSame(
+            clientOwned.nodes.get(0).syncConnections,
+            retained.nodes.get(0).syncConnections
+        );
+        assertNotSame(
+            clientOwned.nodes.get(0).namespaces.get(0),
+            retained.nodes.get(0).namespaces.get(0)
+        );
+        assertNotSame(clientOwned.usage, retained.usage);
+        assertEquals(
+            clientOwned.readLatency.getBucketCounts()[2],
+            retained.readLatency.getBucketCounts()[2]
+        );
     }
 
     @Test
@@ -65,7 +118,7 @@ class TestClientSnapshotRegistry {
         registry.update(disabled);
 
         assertEquals(1, registry.size());
-        assertSame(disabled, find(registry.currentSnapshots(), "primary"));
+        assertNotSame(disabled, find(registry.currentSnapshots(), "primary"));
     }
 
     @Test
@@ -77,7 +130,7 @@ class TestClientSnapshotRegistry {
         registry.update(reEnabled);
 
         assertEquals(1, registry.size());
-        assertSame(reEnabled, find(registry.currentSnapshots(), "primary"));
+        assertNotSame(reEnabled, find(registry.currentSnapshots(), "primary"));
         assertEquals(3, find(registry.currentSnapshots(), "primary").commandRetries);
     }
 

@@ -132,6 +132,8 @@ export AEROSPIKE_HOST="${AEROSPIKE_HOST:-localhost}"
 export AEROSPIKE_PORT="${AEROSPIKE_PORT:-3000}"
 export AEROSPIKE_NAMESPACE="${AEROSPIKE_NAMESPACE:-test}"
 export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4317}"
+export PROMETHEUS_BIND_HOST="${PROMETHEUS_BIND_HOST:-0.0.0.0}"
+export PROMETHEUS_PORT="${PROMETHEUS_PORT:-9465}"
 echo "Using Aerospike at ${AEROSPIKE_HOST}:${AEROSPIKE_PORT}"
 
 echo "Building the metrics exporter example"
@@ -158,9 +160,15 @@ echo "Starting the OpenTelemetry Aerospike workload"
 APP_PID=$!
 
 wait_for_metric \
+  "direct Java Prometheus endpoint" \
+  "http://localhost:${PROMETHEUS_PORT}/metrics" \
+  "aerospike_client_cluster_total_nodes"
+echo "Verified direct Prometheus reader flow"
+
+wait_for_metric \
   "OTel metrics exposed by the Collector" \
   "http://localhost:9464/metrics" \
-  "aerospike_client_total_nodes"
+  "aerospike_client_cluster_total_nodes"
 wait_for_metric \
   "OTel primary client metrics" \
   "http://localhost:9464/metrics" \
@@ -173,14 +181,19 @@ echo "Verified OTel exporter -> Collector flow"
 
 wait_for_prometheus_query \
   "Collector Prometheus scrape" \
-  'aerospike_client_total_nodes{job="aerospike-client-via-otel",client_id="primary"}'
+  'aerospike_client_cluster_total_nodes{job="aerospike-client-via-otel",client_id="primary"}'
 wait_for_prometheus_query \
   "Collector Prometheus reporting client scrape" \
-  'aerospike_client_total_nodes{job="aerospike-client-via-otel",client_id="reporting"}'
+  'aerospike_client_cluster_total_nodes{job="aerospike-client-via-otel",client_id="reporting"}'
 echo "Verified Collector Prometheus scrape job"
 
+wait_for_prometheus_query \
+  "direct Java Prometheus scrape" \
+  'aerospike_client_cluster_total_nodes{job="aerospike-client-direct",client_id="primary"}'
+echo "Verified direct Java Prometheus scrape job"
+
 if ! "${COMPOSE[@]}" logs otel-collector |
-    grep --fixed-strings "aerospike_client_total_nodes" >/dev/null; then
+    grep --fixed-strings "aerospike.client.cluster.total_nodes" >/dev/null; then
   echo "Collector debug logs did not contain the expected Aerospike metric" >&2
   exit 1
 fi

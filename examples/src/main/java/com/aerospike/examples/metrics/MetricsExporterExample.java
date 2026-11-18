@@ -18,6 +18,8 @@ import com.aerospike.client.Key;
 import com.aerospike.client.metrics.MetricsExporterType;
 import com.aerospike.client.metrics.MetricsPolicy;
 import com.aerospike.client.metrics.exporter.otel.OpenTelemetryMetricsExporter;
+import com.aerospike.client.metrics.exporter.prometheus.CustomPrometheusMetricReader;
+import com.aerospike.client.metrics.exporter.prometheus.PrometheusConfig;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.TlsPolicy;
@@ -27,7 +29,8 @@ import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 
 /**
- * Generates a small workload using an application-owned OpenTelemetry pipeline.
+ * Generates a small workload using application-owned OTLP and Prometheus
+ * readers on one provider.
  */
 public final class MetricsExporterExample {
     private static final Duration DEFAULT_DURATION = Duration.ofSeconds(60);
@@ -36,7 +39,7 @@ public final class MetricsExporterExample {
     private MetricsExporterExample() {
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws Exception {
         Duration duration = parseDuration(args);
         String host = environment("AEROSPIKE_HOST", "localhost");
         int port = Integer.parseInt(environment("AEROSPIKE_PORT", "3000"));
@@ -45,6 +48,13 @@ public final class MetricsExporterExample {
             "OTEL_EXPORTER_OTLP_ENDPOINT",
             "http://localhost:4317"
         );
+        String prometheusHost = environment(
+            "PROMETHEUS_BIND_HOST",
+            "127.0.0.1"
+        );
+        int prometheusPort = Integer.parseInt(
+            environment("PROMETHEUS_PORT", "9465")
+        );
 
         OtlpGrpcMetricExporter transport = OtlpGrpcMetricExporter.builder()
             .setEndpoint(endpoint)
@@ -52,8 +62,16 @@ public final class MetricsExporterExample {
         PeriodicMetricReader reader = PeriodicMetricReader.builder(transport)
             .setInterval(DEFAULT_EXPORT_INTERVAL)
             .build();
+        CustomPrometheusMetricReader prometheusReader =
+            CustomPrometheusMetricReader.create(
+                PrometheusConfig.builder()
+                    .setBindHost(prometheusHost)
+                    .setPort(prometheusPort)
+                    .build()
+            );
         SdkMeterProvider meterProvider = SdkMeterProvider.builder()
             .registerMetricReader(reader)
+            .registerMetricReader(prometheusReader)
             .build();
         OpenTelemetryMetricsExporter aerospikeExporter =
             new OpenTelemetryMetricsExporter(meterProvider);
@@ -61,6 +79,7 @@ public final class MetricsExporterExample {
         AerospikeClient primaryClient = null;
         AerospikeClient reportingClient = null;
         try {
+            prometheusReader.startHttpServer();
             Host[] hosts = Host.parseHosts(host, port);
             primaryClient = new AerospikeClient(
                 clientPolicy("metrics-exporter-primary"),
@@ -76,6 +95,13 @@ public final class MetricsExporterExample {
 
             System.out.println("Two example clients connected to " + host + ":" + port);
             System.out.println("Sending OTLP metrics to " + endpoint);
+            System.out.println(
+                "Serving Prometheus metrics at http://"
+                    + prometheusHost
+                    + ":"
+                    + prometheusReader.getHttpServerPort()
+                    + "/metrics"
+            );
             runWorkload(primaryClient, reportingClient, namespace, duration);
         }
         finally {
@@ -83,7 +109,7 @@ public final class MetricsExporterExample {
             disableAndClose(reportingClient);
             // The adapter unregisters only its callbacks and waits for final attempts.
             aerospikeExporter.close();
-            // The application owns provider, reader, transport, and OTLP teardown.
+            // Provider shutdown stops both readers and the exporter-owned server.
             meterProvider.close();
         }
     }

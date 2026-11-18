@@ -8,10 +8,12 @@ package com.aerospike.client.metrics.exporter.otel;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -42,17 +44,22 @@ class TestOpenTelemetryMetricsExporter {
             Collection<MetricData> metrics = reader.collect();
             Set<String> names = names(metrics);
 
-            assertTrue(names.contains("aerospike_client_total_nodes"));
-            assertTrue(names.contains("aerospike_client_retry_count"));
-            assertTrue(names.contains("aerospike_client_namespace_client_timeouts"));
-            assertTrue(names.contains("aerospike_client_validation_open_failure"));
-            assertTrue(names.contains("aerospike_client_feature_api_blocking"));
-            assertTrue(names.contains("aerospike_client_latency_bucket"));
-            assertTrue(names.contains("aerospike_client_namespace_latency_bucket"));
-            assertTrue(names.contains("aerospike_client_node_conn_latency_bucket"));
-            assertFalse(names.contains("aerospike_client_exceeded_max_retries"));
+            assertTrue(names.contains("aerospike.client.cluster.total_nodes"));
+            assertTrue(names.contains("aerospike.client.cluster.retry_count"));
+            assertTrue(names.contains("aerospike.client.namespace.client_timeouts"));
+            assertFalse(names.contains(
+                "aerospike.client.cluster.validation_open_failure"
+            ));
+            assertFalse(names.contains("aerospike.client.feature.api_blocking"));
+            assertTrue(names.contains("aerospike.client.cluster.latency_bucket"));
+            assertTrue(names.contains("aerospike.client.namespace.latency_bucket"));
+            assertTrue(names.contains("aerospike.client.node.conn_latency_bucket"));
+            assertFalse(names.contains("aerospike.client.cluster.exceeded_max_retries"));
 
-            MetricData latency = metric(metrics, "aerospike_client_latency_bucket");
+            MetricData latency = metric(
+                metrics, "aerospike.client.cluster.latency_bucket"
+            );
+            assertEquals("{operation}", latency.getUnit());
             assertTrue(latency.getLongSumData().getPoints().stream().anyMatch(point ->
                 "read".equals(point.getAttributes().get(
                     AttributeKey.stringKey("latency_type")
@@ -62,14 +69,15 @@ class TestOpenTelemetryMetricsExporter {
 
             MetricData namespace = metric(
                 metrics,
-                "aerospike_client_namespace_client_timeouts"
+                "aerospike.client.namespace.client_timeouts"
             );
+            assertEquals("{timeout}", namespace.getUnit());
             assertTrue(namespace.getLongSumData().getPoints().stream().anyMatch(point ->
                 "test".equals(point.getAttributes().get(
-                    AttributeKey.stringKey("namespace")
+                    AttributeKey.stringKey("ns")
                 ))
                     && "N1".equals(point.getAttributes().get(
-                        AttributeKey.stringKey("node")
+                        AttributeKey.stringKey("server_node_id")
                     ))
             ));
         }
@@ -80,23 +88,23 @@ class TestOpenTelemetryMetricsExporter {
     }
 
     @Test
-    void supportsIndependentEnabledDisabledEnabledTransitions() {
+    void supportsOperationalEnabledDisabledEnabledTransitions() {
         TestMetricReader reader = new TestMetricReader();
         SdkMeterProvider provider = provider(reader);
         OpenTelemetryMetricsExporter exporter =
             new OpenTelemetryMetricsExporter(provider);
         try {
             exporter.export(TestSnapshots.withGates(true, true));
-            assertTiers(reader.collect(), true, true);
+            assertTiers(reader.collect(), true);
 
             exporter.export(TestSnapshots.withGates(false, true));
-            assertTiers(reader.collect(), false, true);
+            assertTiers(reader.collect(), false);
 
             exporter.export(TestSnapshots.withGates(true, false));
-            assertTiers(reader.collect(), true, false);
+            assertTiers(reader.collect(), true);
 
             exporter.export(TestSnapshots.withGates(true, true));
-            assertTiers(reader.collect(), true, true);
+            assertTiers(reader.collect(), true);
         }
         finally {
             exporter.close();
@@ -117,14 +125,14 @@ class TestOpenTelemetryMetricsExporter {
             assertEquals(1, exporter.snapshotRegistry().size());
             assertEquals(0, reader.flushCount());
             MetricData commands = metric(
-                reader.collect(), "aerospike_client_command_count"
+                reader.collect(), "aerospike.client.cluster.command_count"
             );
             assertTrue(commands.getLongSumData().getPoints().stream().anyMatch(
                 point -> point.getValue() == 100L
             ));
 
             MetricData retained = metric(
-                reader.collect(), "aerospike_client_command_count"
+                reader.collect(), "aerospike.client.cluster.command_count"
             );
             assertTrue(retained.getLongSumData().getPoints().stream().anyMatch(
                 point -> point.getValue() == 100L
@@ -149,7 +157,7 @@ class TestOpenTelemetryMetricsExporter {
 
             exporter.export(TestSnapshots.forClient("primary", 101L));
             MetricData commands =
-                metric(reader.collect(), "aerospike_client_command_count");
+                metric(reader.collect(), "aerospike.client.cluster.command_count");
             assertTrue(commands.getLongSumData().getPoints().stream().anyMatch(
                 point -> point.getValue() == 101L
             ));
@@ -157,6 +165,93 @@ class TestOpenTelemetryMetricsExporter {
         finally {
             exporter.close();
             provider.close();
+        }
+    }
+
+    @Test
+    void repeatedDisableReEnableKeepsNewestFinalSnapshot() {
+        TestMetricReader reader = new TestMetricReader();
+        SdkMeterProvider provider = provider(reader);
+        OpenTelemetryMetricsExporter exporter =
+            new OpenTelemetryMetricsExporter(provider);
+        try {
+            exporter.export(TestSnapshots.complete());
+            exporter.export(TestSnapshots.disabled(100L));
+            exporter.export(TestSnapshots.forClient("primary", 101L));
+            exporter.export(TestSnapshots.disabled(102L));
+
+            MetricData commands = metric(
+                reader.collect(), "aerospike.client.cluster.command_count"
+            );
+            assertTrue(commands.getLongSumData().getPoints().stream().anyMatch(
+                point -> point.getValue() == 102L
+            ));
+            assertEquals(0, reader.flushCount());
+        }
+        finally {
+            exporter.close();
+            provider.close();
+        }
+    }
+
+    @Test
+    void sharesCustomerProviderWithMultipleReadersAndApplicationMetrics() {
+        TestMetricReader first = new TestMetricReader();
+        TestMetricReader second = new TestMetricReader();
+        SdkMeterProvider provider = SdkMeterProvider.builder()
+            .registerMetricReader(first)
+            .registerMetricReader(second)
+            .build();
+        OpenTelemetryMetricsExporter exporter =
+            new OpenTelemetryMetricsExporter(provider);
+        try {
+            provider.get("application").counterBuilder("application.jobs")
+                .build().add(7L);
+            exporter.export(TestSnapshots.complete());
+
+            for (TestMetricReader reader : Set.of(first, second)) {
+                Set<String> metricNames = names(reader.collect());
+                assertTrue(metricNames.contains("application.jobs"));
+                assertTrue(metricNames.contains(
+                    "aerospike.client.cluster.command_count"
+                ));
+            }
+        }
+        finally {
+            exporter.close();
+            provider.close();
+        }
+    }
+
+    @Test
+    void separateAdaptersKeepIndependentRegistriesAndFailures() {
+        TestMetricReader firstReader = new TestMetricReader();
+        TestMetricReader secondReader = new TestMetricReader();
+        SdkMeterProvider firstProvider = provider(firstReader);
+        SdkMeterProvider secondProvider = provider(secondReader);
+        OpenTelemetryMetricsExporter first =
+            new OpenTelemetryMetricsExporter(firstProvider);
+        OpenTelemetryMetricsExporter second =
+            new OpenTelemetryMetricsExporter(secondProvider);
+        try {
+            assertNotSame(first.snapshotRegistry(), second.snapshotRegistry());
+            first.export(TestSnapshots.withInvalidEventLoop());
+            assertDoesNotThrow(firstReader::collect);
+
+            second.export(TestSnapshots.forClient("primary", 42L));
+            assertEquals(
+                42L,
+                metric(
+                    secondReader.collect(),
+                    "aerospike.client.cluster.command_count"
+                ).getLongSumData().getPoints().iterator().next().getValue()
+            );
+        }
+        finally {
+            first.close();
+            second.close();
+            firstProvider.close();
+            secondProvider.close();
         }
     }
 
@@ -195,12 +290,26 @@ class TestOpenTelemetryMetricsExporter {
             exporter.export(TestSnapshots.forClient("reporting", 42L));
 
             assertEquals(2, exporter.snapshotRegistry().size());
+            Collection<MetricData> metrics = reader.collect();
+            Map<String, Long> commandsByClient = metric(
+                metrics,
+                "aerospike.client.cluster.command_count"
+            ).getLongSumData().getPoints().stream().collect(Collectors.toMap(
+                point -> point.getAttributes().get(
+                    AttributeKey.stringKey("client_id")
+                ),
+                point -> point.getValue()
+            ));
+            assertEquals(Map.of("primary", 99L, "reporting", 42L), commandsByClient);
+
             MetricData connections = metric(
-                reader.collect(),
-                "aerospike_client_node_connections_opened"
+                metrics,
+                "aerospike.client.node.connections_opened"
             );
             assertTrue(connections.getLongSumData().getPoints().stream().anyMatch(point ->
-                "D1".equals(point.getAttributes().get(AttributeKey.stringKey("node")))
+                "D1".equals(point.getAttributes().get(
+                    AttributeKey.stringKey("server_node_id")
+                ))
             ));
         }
         finally {
@@ -217,11 +326,20 @@ class TestOpenTelemetryMetricsExporter {
             new OpenTelemetryMetricsExporter(provider);
         try {
             exporter.export(TestSnapshots.withInvalidEventLoop());
-            assertDoesNotThrow(reader::collect);
+            Collection<MetricData> partial = assertDoesNotThrow(reader::collect);
+            assertTrue(names(partial).contains(
+                "aerospike.client.cluster.total_nodes"
+            ));
 
             assertDoesNotThrow(() -> exporter.export(TestSnapshots.complete()));
-            assertTrue(
-                names(reader.collect()).contains("aerospike_client_total_nodes")
+            Collection<MetricData> recovered = reader.collect();
+            assertTrue(names(recovered).contains(
+                "aerospike.client.eventloop.process_size"
+            ));
+            assertEquals(
+                7L,
+                metric(recovered, "aerospike.client.eventloop.process_size")
+                    .getLongGaugeData().getPoints().iterator().next().getValue()
             );
         }
         finally {
@@ -240,15 +358,21 @@ class TestOpenTelemetryMetricsExporter {
             exporter.export(TestSnapshots.withCollidingLabels());
             Collection<MetricData> metrics = reader.collect();
 
-            var global = metric(metrics, "aerospike_client_total_nodes")
+            var global = metric(metrics, "aerospike.client.cluster.total_nodes")
                 .getLongGaugeData().getPoints().iterator().next().getAttributes();
             assertEquals("prod", global.get(AttributeKey.stringKey("cluster")));
             assertEquals("java", global.get(AttributeKey.stringKey("client_type")));
-            assertFalse(global.asMap().containsKey(AttributeKey.stringKey("node")));
+            assertEquals("payments", global.get(AttributeKey.stringKey("team")));
+            assertFalse(global.asMap().containsKey(
+                AttributeKey.stringKey("feature")
+            ));
+            assertFalse(global.asMap().containsKey(
+                AttributeKey.stringKey("server_node_id")
+            ));
             assertFalse(global.asMap().containsKey(AttributeKey.stringKey("le")));
 
             var connection = metric(
-                metrics, "aerospike_client_node_connections_opened"
+                metrics, "aerospike.client.node.connections_opened"
             ).getLongSumData().getPoints().stream()
                 .filter(point -> "sync".equals(point.getAttributes().get(
                     AttributeKey.stringKey("conn_type")
@@ -256,20 +380,22 @@ class TestOpenTelemetryMetricsExporter {
                 .findFirst()
                 .orElseThrow()
                 .getAttributes();
-            assertEquals("N1", connection.get(AttributeKey.stringKey("node")));
+            assertEquals(
+                "N1", connection.get(AttributeKey.stringKey("server_node_id"))
+            );
             assertEquals(
                 "127.0.0.1",
-                connection.get(AttributeKey.stringKey("node_address"))
+                connection.get(AttributeKey.stringKey("server_node_address"))
             );
 
             var namespace = metric(
-                metrics, "aerospike_client_namespace_errors"
+                metrics, "aerospike.client.namespace.errors"
             ).getLongSumData().getPoints().iterator().next().getAttributes();
             assertEquals(
-                "test", namespace.get(AttributeKey.stringKey("namespace"))
+                "test", namespace.get(AttributeKey.stringKey("ns"))
             );
 
-            var latency = metric(metrics, "aerospike_client_latency_bucket")
+            var latency = metric(metrics, "aerospike.client.cluster.latency_bucket")
                 .getLongSumData().getPoints().iterator().next().getAttributes();
             assertEquals(
                 "milliseconds",
@@ -307,7 +433,7 @@ class TestOpenTelemetryMetricsExporter {
             Collection<MetricData> metrics = reader.collect();
 
             MetricData commands =
-                metric(metrics, "aerospike_client_command_count");
+                metric(metrics, "aerospike.client.cluster.command_count");
             assertEquals(
                 temporality,
                 commands.getLongSumData().getAggregationTemporality()
@@ -317,7 +443,9 @@ class TestOpenTelemetryMetricsExporter {
                 commands.getLongSumData().getPoints().iterator().next().getValue()
             );
 
-            MetricData latency = metric(metrics, "aerospike_client_latency_bucket");
+            MetricData latency = metric(
+                metrics, "aerospike.client.cluster.latency_bucket"
+            );
             assertEquals(
                 temporality,
                 latency.getLongSumData().getAggregationTemporality()
@@ -340,7 +468,7 @@ class TestOpenTelemetryMetricsExporter {
 
             assertEquals(
                 3L,
-                metric(metrics, "aerospike_client_total_nodes")
+                metric(metrics, "aerospike.client.cluster.total_nodes")
                     .getLongGaugeData().getPoints().iterator().next().getValue()
             );
         }
@@ -352,19 +480,15 @@ class TestOpenTelemetryMetricsExporter {
 
     private static void assertTiers(
             Collection<MetricData> metrics,
-            boolean operational,
-            boolean usage
+            boolean operational
     ) {
         Set<String> names = names(metrics);
-        assertTrue(names.contains("aerospike_client_total_nodes"));
+        assertTrue(names.contains("aerospike.client.cluster.total_nodes"));
         assertEquals(
             operational,
-            names.contains("aerospike_client_command_count")
+            names.contains("aerospike.client.cluster.command_count")
         );
-        assertEquals(
-            usage,
-            names.contains("aerospike_client_feature_api_blocking")
-        );
+        assertFalse(names.contains("aerospike.client.feature.api_blocking"));
     }
 
     private static SdkMeterProvider provider(TestMetricReader reader) {

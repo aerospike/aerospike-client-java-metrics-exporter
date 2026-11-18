@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
@@ -19,15 +20,33 @@ import com.aerospike.client.Record;
 import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.listener.RecordListener;
 import com.aerospike.client.listener.WriteListener;
+import com.aerospike.client.metrics.MetricsExporterType;
+import com.aerospike.client.metrics.MetricsPolicy;
+import com.aerospike.client.metrics.MetricsSnapshot;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.TlsPolicy;
 
 final class TestAerospikeIntegrationSupport {
-    private final String host = environment("AEROSPIKE_HOST", "localhost");
-    private final int port = Integer.parseInt(environment("AEROSPIKE_PORT", "3000"));
-    private final String namespace = environment("AEROSPIKE_NAMESPACE", "test");
-    private final String set = environment("AEROSPIKE_SET", "metrics_exporter_it");
+    private final String host;
+    private final int port;
+    private final String namespace;
+    private final String set;
+
+    TestAerospikeIntegrationSupport() {
+        this(
+            environment("AEROSPIKE_HOST", "localhost"),
+            Integer.parseInt(environment("AEROSPIKE_PORT", "3000")),
+            environment("AEROSPIKE_NAMESPACE", "test")
+        );
+    }
+
+    TestAerospikeIntegrationSupport(String host, int port, String namespace) {
+        this.host = host;
+        this.port = port;
+        this.namespace = namespace;
+        this.set = environment("AEROSPIKE_SET", "metrics_exporter_it");
+    }
 
     AerospikeClient newClient(String appId) {
         return newClient(clientPolicy(appId));
@@ -39,11 +58,7 @@ final class TestAerospikeIntegrationSupport {
         return newClient(policy);
     }
 
-    String namespace() {
-        return namespace;
-    }
-
-    private AerospikeClient newClient(ClientPolicy policy) {
+    AerospikeClient newClient(ClientPolicy policy) {
         try {
             return new AerospikeClient(policy, Host.parseHosts(host, port));
         }
@@ -55,7 +70,7 @@ final class TestAerospikeIntegrationSupport {
         }
     }
 
-    private static ClientPolicy clientPolicy(String appId) {
+    ClientPolicy clientPolicy(String appId) {
         ClientPolicy policy = new ClientPolicy();
         policy.appId = appId;
         policy.user = environment("AEROSPIKE_USER", null);
@@ -69,7 +84,42 @@ final class TestAerospikeIntegrationSupport {
         return policy;
     }
 
-    void runWorkload(
+    MetricsPolicy metricsPolicy(
+            OpenTelemetryMetricsExporter exporter,
+            String clientId,
+            boolean operational
+    ) {
+        MetricsPolicy policy = new MetricsPolicy();
+        policy.exporter = MetricsExporterType.CUSTOM;
+        policy.exportInterval = Duration.ofMillis(100);
+        policy.enableOperationalMetrics = operational;
+        policy.labels = java.util.Map.of("client_id", clientId);
+        policy.addExporter(exporter);
+        return policy;
+    }
+
+    MetricsSnapshot awaitSnapshot(
+            OpenTelemetryMetricsExporter exporter,
+            Predicate<MetricsSnapshot> predicate
+    ) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            for (MetricsSnapshot snapshot :
+                    exporter.snapshotRegistry().currentSnapshots()) {
+                if (predicate.test(snapshot)) {
+                    return snapshot;
+                }
+            }
+            TimeUnit.MILLISECONDS.sleep(20);
+        }
+        throw new AssertionError("Timed out waiting for an Aerospike metrics snapshot");
+    }
+
+    String namespace() {
+        return namespace;
+    }
+
+    int runWorkload(
             AerospikeClient writer,
             AerospikeClient reader,
             Duration duration
@@ -83,6 +133,20 @@ final class TestAerospikeIntegrationSupport {
             reader.get(null, key);
             sequence++;
             TimeUnit.MILLISECONDS.sleep(20);
+        }
+        return sequence;
+    }
+
+    void runOperations(
+            AerospikeClient writer,
+            AerospikeClient reader,
+            int iterations
+    ) {
+        for (int sequence = 0; sequence < iterations; sequence++) {
+            Key key = new Key(namespace, set, sequence % 50);
+            writer.put(null, key, new Bin("sequence", sequence));
+            writer.get(null, key);
+            reader.get(null, key);
         }
     }
 
@@ -170,7 +234,7 @@ final class TestAerospikeIntegrationSupport {
         }
     }
 
-    private static String environment(String name, String defaultValue) {
+    static String environment(String name, String defaultValue) {
         String value = System.getenv(name);
         return value == null || value.trim().isEmpty() ? defaultValue : value.trim();
     }

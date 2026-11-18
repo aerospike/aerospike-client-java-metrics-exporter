@@ -19,8 +19,15 @@ import com.aerospike.client.metrics.MetricsSnapshot;
 /**
  * Stores the latest snapshot independently for every client that shares an
  * exporter instance. Updates may arrive concurrently from different client
- * metrics dispatchers. Disabled snapshots remain observable until a later
- * snapshot replaces them or the registry is cleared.
+ * metrics dispatchers. Client-owned snapshots are copied during
+ * {@link #update(MetricsSnapshot)} and are never retained after that call.
+ * Disabled snapshots remain observable until a later snapshot replaces them
+ * or the registry is cleared.
+ *
+ * <p>TODO: Latest-snapshot replacement can discard a transient departed-node
+ * series, or any other transient attribute set, before an OTel reader collects
+ * it. Revisit whether unobserved transient points need retention through at
+ * least one collection.</p>
  */
 public final class ClientSnapshotRegistry {
     public static final String CLIENT_ID = "client_id";
@@ -37,7 +44,7 @@ public final class ClientSnapshotRegistry {
     /**
      * Validate and retain the latest snapshot for its {@code client_id}.
      *
-     * @param snapshot immutable client snapshot to retain
+     * @param snapshot client-owned snapshot to copy before this call returns
      * @throws IllegalArgumentException if the snapshot or its labels are invalid
      */
     public void update(MetricsSnapshot snapshot) {
@@ -67,7 +74,7 @@ public final class ClientSnapshotRegistry {
         }
 
         String clientId = clientId(snapshot);
-        snapshots.put(clientId, snapshot);
+        snapshots.put(clientId, MetricsSnapshotCopier.copy(snapshot));
     }
 
     /**
@@ -93,7 +100,6 @@ public final class ClientSnapshotRegistry {
         snapshots.clear();
     }
 
-    //todo: Verify if this is needed or will be passed
     private static String clientId(MetricsSnapshot snapshot) {
         if (snapshot.labels == null) {
             throw new IllegalArgumentException(

@@ -10,11 +10,12 @@
   <packaging>pom</packaging>
 
   <name>Aerospike Java Client Metrics Exporter</name>
-  <description>Optional OpenTelemetry exporter for Aerospike Java client metrics.</description>
+  <description>Optional OpenTelemetry and Prometheus exporters for Aerospike Java client metrics.</description>
 
   <modules>
     <module>common</module>
     <module>otel</module>
+    <module>prometheus</module>
     <module>examples</module>
   </modules>
 
@@ -23,8 +24,11 @@
     <maven.compiler.release>21</maven.compiler.release>
 
     <aerospike.client.version>10.4.0</aerospike.client.version>
-    <opentelemetry.version>1.49.0</opentelemetry.version>
+    <opentelemetry.version>1.62.0</opentelemetry.version>
+    <opentelemetry.prometheus.alpha.version>1.62.0-alpha</opentelemetry.prometheus.alpha.version>
+    <prometheus.version>1.10.0</prometheus.version>
     <junit.version>5.12.2</junit.version>
+    <testcontainers.version>1.21.4</testcontainers.version>
 
     <maven.compiler.version>3.14.0</maven.compiler.version>
     <maven.enforcer.version>3.5.0</maven.enforcer.version>
@@ -46,6 +50,11 @@
         <artifactId>aerospike-client-metrics-common</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.aerospike</groupId>
+        <artifactId>aerospike-client-metrics-otel</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>io.opentelemetry</groupId>
@@ -59,6 +68,11 @@
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter</artifactId>
         <version>${junit.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${testcontainers.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
