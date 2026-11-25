@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -160,10 +161,10 @@ class TestOfficialPrometheusCompatibility {
             EscapingScheme.UNDERSCORE_ESCAPING
         );
         return Arrays.stream(
-                output.toString(StandardCharsets.UTF_8).split("\\R")
+                output.toString(StandardCharsets.UTF_8.name()).split("\\R")
             )
-            .filter(line -> !line.isBlank())
+            .filter(line -> !line.trim().isEmpty())
             .sorted()
-            .toList();
+            .collect(Collectors.toList());
     }
 }

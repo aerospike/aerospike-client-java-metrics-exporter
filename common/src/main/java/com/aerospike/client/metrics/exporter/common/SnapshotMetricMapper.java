@@ -6,6 +6,7 @@
 package com.aerospike.client.metrics.exporter.common;
 
 import java.util.Collection;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,7 @@ public final class SnapshotMetricMapper {
     private static final String SYNC = "sync";
     private static final String ASYNC = "async";
 
-    private static final List<LongBinding<MetricsSnapshot>> CLIENT_LONG = List.of(
+    private static final List<LongBinding<MetricsSnapshot>> CLIENT_LONG = Arrays.asList(
         new LongBinding<>(MetricCatalog.RECOVER_QUEUE_SIZE, value -> value.recoverQueueSize),
         new LongBinding<>(MetricCatalog.TOTAL_NODES, value -> value.totalNodes),
         new LongBinding<>(MetricCatalog.OPEN_CONNECTIONS, value -> value.openConnections),
@@ -44,14 +45,14 @@ public final class SnapshotMetricMapper {
     private static final DoubleBinding<MetricsSnapshot> CLIENT_CPU =
         new DoubleBinding<>(MetricCatalog.CPU_PERCENT, value -> value.cpuPercent);
     private static final List<LongBinding<ConnectionMetricsSnapshot>> CONNECTIONS =
-        List.of(
+        Arrays.asList(
             new LongBinding<>(MetricCatalog.CONNECTIONS_IN_USE, value -> value.inUse),
             new LongBinding<>(MetricCatalog.CONNECTIONS_IN_POOL, value -> value.inPool),
             new LongBinding<>(MetricCatalog.CONNECTIONS_OPENED, value -> value.opened),
             new LongBinding<>(MetricCatalog.CONNECTIONS_CLOSED, value -> value.closed)
         );
     private static final List<LongBinding<NamespaceMetricsSnapshot>> NAMESPACES =
-        List.of(
+        Arrays.asList(
             new LongBinding<>(MetricCatalog.NAMESPACE_ERRORS, value -> value.errors),
             new LongBinding<>(
                 MetricCatalog.NAMESPACE_CLIENT_TIMEOUTS,
@@ -213,11 +214,18 @@ public final class SnapshotMetricMapper {
             MetricsSnapshot snapshot,
             MetricDescriptor descriptor
     ) {
-        return switch (descriptor.tier()) {
-            case STANDARD -> true;
-            case OPERATIONAL -> snapshot.operationalMetricsEnabled;
-            case USAGE -> snapshot.usageMetricsEnabled;
-        };
+        switch (descriptor.tier()) {
+            case STANDARD:
+                return true;
+            case OPERATIONAL:
+                return snapshot.operationalMetricsEnabled;
+            case USAGE:
+                return snapshot.usageMetricsEnabled;
+            default:
+                throw new IllegalArgumentException(
+                    "Unsupported metric tier: " + descriptor.tier()
+                );
+        }
     }
 
     private static <T> LongBinding<T> find(
@@ -238,7 +246,7 @@ public final class SnapshotMetricMapper {
     ) {
         Set<String> activeNodeNames = new HashSet<String>();
         for (NodeMetricsSnapshot node : snapshot.nodes) {
-            if (node.nodeName != null && !node.nodeName.isBlank()) {
+            if (!isBlank(node.nodeName)) {
                 activeNodeNames.add(node.nodeName);
             }
             consumer.accept(node);
@@ -247,8 +255,7 @@ public final class SnapshotMetricMapper {
             // Client-java should produce disjoint active/departed lists. This
             // fallback prevents duplicate OTel series from malformed snapshots
             // and older clients; the active node is authoritative.
-            if (node.nodeName == null
-                    || node.nodeName.isBlank()
+            if (isBlank(node.nodeName)
                     || !activeNodeNames.contains(node.nodeName)) {
                 consumer.accept(node);
             }
@@ -256,13 +263,25 @@ public final class SnapshotMetricMapper {
     }
 
     static boolean exportable(NamespaceMetricsSnapshot namespace) {
-        return namespace.namespace != null && !namespace.namespace.isBlank();
+        return !isBlank(namespace.namespace);
     }
 
-    private record LongBinding<T>(
-        MetricDescriptor descriptor,
-        ToLongFunction<T> value
-    ) {
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private static final class LongBinding<T> {
+        private final MetricDescriptor descriptor;
+        private final ToLongFunction<T> value;
+
+        private LongBinding(
+                MetricDescriptor descriptor,
+                ToLongFunction<T> value
+        ) {
+            this.descriptor = descriptor;
+            this.value = value;
+        }
+
         boolean matches(MetricDescriptor candidate) {
             return descriptor == candidate;
         }
@@ -279,10 +298,18 @@ public final class SnapshotMetricMapper {
         }
     }
 
-    private record DoubleBinding<T>(
-        MetricDescriptor descriptor,
-        ToDoubleFunction<T> value
-    ) {
+    private static final class DoubleBinding<T> {
+        private final MetricDescriptor descriptor;
+        private final ToDoubleFunction<T> value;
+
+        private DoubleBinding(
+                MetricDescriptor descriptor,
+                ToDoubleFunction<T> value
+        ) {
+            this.descriptor = descriptor;
+            this.value = value;
+        }
+
         boolean matches(MetricDescriptor candidate) {
             return descriptor == candidate;
         }

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -50,7 +51,9 @@ class TestOtelMetricDataConverter {
 
             assertEquals(
                 0,
-                converter.convert(List.of(unsupportedSummary())).size()
+                converter.convert(
+                    Collections.singletonList(unsupportedSummary())
+                ).size()
             );
             assertTrue(records.stream().anyMatch(record ->
                 record.getMessage().contains("Unsupported")

@@ -12,7 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
@@ -209,7 +212,7 @@ class TestOpenTelemetryMetricsExporter {
                 .build().add(7L);
             exporter.export(TestSnapshots.complete());
 
-            for (TestMetricReader reader : Set.of(first, second)) {
+            for (TestMetricReader reader : Arrays.asList(first, second)) {
                 Set<String> metricNames = names(reader.collect());
                 assertTrue(metricNames.contains("application.jobs"));
                 assertTrue(metricNames.contains(
@@ -300,7 +303,10 @@ class TestOpenTelemetryMetricsExporter {
                 ),
                 point -> point.getValue()
             ));
-            assertEquals(Map.of("primary", 99L, "reporting", 42L), commandsByClient);
+            Map<String, Long> expected = new LinkedHashMap<String, Long>();
+            expected.put("primary", 99L);
+            expected.put("reporting", 42L);
+            assertEquals(expected, commandsByClient);
 
             MetricData connections = metric(
                 metrics,
@@ -358,7 +364,10 @@ class TestOpenTelemetryMetricsExporter {
             exporter.export(TestSnapshots.withCollidingLabels());
             Collection<MetricData> metrics = reader.collect();
 
-            var global = metric(metrics, "aerospike.client.cluster.total_nodes")
+            Attributes global = metric(
+                metrics,
+                "aerospike.client.cluster.total_nodes"
+            )
                 .getLongGaugeData().getPoints().iterator().next().getAttributes();
             assertEquals("prod", global.get(AttributeKey.stringKey("cluster")));
             assertEquals("java", global.get(AttributeKey.stringKey("client_type")));
@@ -371,14 +380,16 @@ class TestOpenTelemetryMetricsExporter {
             ));
             assertFalse(global.asMap().containsKey(AttributeKey.stringKey("le")));
 
-            var connection = metric(
+            Attributes connection = metric(
                 metrics, "aerospike.client.node.connections_opened"
             ).getLongSumData().getPoints().stream()
                 .filter(point -> "sync".equals(point.getAttributes().get(
                     AttributeKey.stringKey("conn_type")
                 )))
                 .findFirst()
-                .orElseThrow()
+                .orElseThrow(() -> new AssertionError(
+                    "missing sync connection metric"
+                ))
                 .getAttributes();
             assertEquals(
                 "N1", connection.get(AttributeKey.stringKey("server_node_id"))
@@ -388,14 +399,17 @@ class TestOpenTelemetryMetricsExporter {
                 connection.get(AttributeKey.stringKey("server_node_address"))
             );
 
-            var namespace = metric(
+            Attributes namespace = metric(
                 metrics, "aerospike.client.namespace.errors"
             ).getLongSumData().getPoints().iterator().next().getAttributes();
             assertEquals(
                 "test", namespace.get(AttributeKey.stringKey("ns"))
             );
 
-            var latency = metric(metrics, "aerospike.client.cluster.latency_bucket")
+            Attributes latency = metric(
+                metrics,
+                "aerospike.client.cluster.latency_bucket"
+            )
                 .getLongSumData().getPoints().iterator().next().getAttributes();
             assertEquals(
                 "milliseconds",
@@ -462,7 +476,9 @@ class TestOpenTelemetryMetricsExporter {
                             ))
                     )
                     .findFirst()
-                    .orElseThrow()
+                    .orElseThrow(() -> new AssertionError(
+                        "missing read +Inf latency bucket"
+                    ))
                     .getValue()
             );
 

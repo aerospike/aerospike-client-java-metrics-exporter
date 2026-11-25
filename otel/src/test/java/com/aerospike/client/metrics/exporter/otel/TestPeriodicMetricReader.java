@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -133,7 +134,7 @@ class TestPeriodicMetricReader {
 
         @Override
         public CompletableResultCode export(Collection<MetricData> metrics) {
-            exports.add(List.copyOf(metrics));
+            exports.add(new ArrayList<MetricData>(metrics));
             return CompletableResultCode.ofSuccess();
         }
 

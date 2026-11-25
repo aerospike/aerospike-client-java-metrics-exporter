@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -34,10 +35,10 @@ class TestClientSnapshotRegistry {
             snapshot(Collections.emptyMap(), true, 1)
         ));
         assertThrows(IllegalArgumentException.class, () -> registry.update(
-            snapshot(Map.of("client_id", " "), true, 1)
+            snapshot(Collections.singletonMap("client_id", " "), true, 1)
         ));
         assertThrows(IllegalArgumentException.class, () -> registry.update(
-            snapshot(Map.of("client_id", "primary", "bad.label", "value"), true, 1)
+            snapshot(invalidLabels(), true, 1)
         ));
 
         assertEquals(0, registry.size());
@@ -140,8 +141,10 @@ class TestClientSnapshotRegistry {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch start = new CountDownLatch(1);
         try {
-            var primary = executor.submit(() -> updateMany(registry, start, "primary"));
-            var reporting = executor.submit(() -> updateMany(registry, start, "reporting"));
+            Future<?> primary =
+                executor.submit(() -> updateMany(registry, start, "primary"));
+            Future<?> reporting =
+                executor.submit(() -> updateMany(registry, start, "reporting"));
             start.countDown();
             primary.get(5, TimeUnit.SECONDS);
             reporting.get(5, TimeUnit.SECONDS);
@@ -183,6 +186,13 @@ class TestClientSnapshotRegistry {
         return labels;
     }
 
+    private static Map<String, String> invalidLabels() {
+        Map<String, String> labels = new LinkedHashMap<String, String>();
+        labels.put("client_id", "primary");
+        labels.put("bad.label", "value");
+        return labels;
+    }
+
     private static MetricsSnapshot find(
             Collection<MetricsSnapshot> snapshots,
             String clientId
@@ -190,7 +200,9 @@ class TestClientSnapshotRegistry {
         return snapshots.stream()
             .filter(snapshot -> clientId.equals(snapshot.labels.get("client_id")))
             .findFirst()
-            .orElseThrow();
+            .orElseThrow(() -> new AssertionError(
+                "missing snapshot for client " + clientId
+            ));
     }
 
     private static MetricsSnapshot snapshot(

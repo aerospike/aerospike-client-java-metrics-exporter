@@ -15,7 +15,22 @@ core Aerospike client and is not the server-side
 - `prometheus`: stable client_java reader and optional HTTP/TLS server,
   published as `aerospike-client-metrics-prometheus`.
 - `examples`: customer-owned OTLP/Prometheus pipeline and Grafana
-  demonstration.
+  demonstration. It is temporarily excluded from the JDK8 reactor until the
+  client supplies the custom-exporter policy hooks.
+- `build-support/client-contract-jdk8-stub`: temporary, non-deployable Java 8
+  compile/test copy of the client-owned snapshot contract.
+
+### Temporary JDK8 contract status
+
+This branch targets Java 8 source and bytecode, but must not be released while
+the contract stub exists. The stub supports exporter compilation and tests
+only; the current `aerospike-client-jdk8:10.5.0` cannot create
+`MetricsSnapshot` or invoke `IMetricsExporter`.
+
+TODO(OM-386): when the official JDK8 client publishes the contract, delete the
+stub module, use the client-owned types, restore the active example and all
+client-backed integration tests, and run the complete end-to-end suite before
+release.
 
 ## Dependencies
 
@@ -101,7 +116,10 @@ metricsPolicy.exporter = MetricsExporterType.CUSTOM;
 metricsPolicy.exportInterval = Duration.ofSeconds(30);
 metricsPolicy.enableOperationalMetrics = true;
 metricsPolicy.enableUsageMetrics = true;
-metricsPolicy.labels = Map.of("client_id", "orders-client");
+metricsPolicy.labels = Collections.singletonMap(
+    "client_id",
+    "orders-client"
+);
 metricsPolicy.addExporter(aerospikeExporter);
 
 AerospikeClient client =
@@ -201,9 +219,9 @@ RSA PKCS#1 private keys, an optional client CA, and TLS version bounds:
 
 ```java
 TlsConfig tls = TlsConfig.builder()
-    .setCertificatePath(Path.of("/run/secrets/server.crt"))
-    .setPrivateKeyPath(Path.of("/run/secrets/server.key"))
-    .setClientCaPath(Path.of("/run/secrets/client-ca.crt"))
+    .setCertificatePath(Paths.get("/run/secrets/server.crt"))
+    .setPrivateKeyPath(Paths.get("/run/secrets/server.key"))
+    .setClientCaPath(Paths.get("/run/secrets/client-ca.crt"))
     .setClientCertificateRequired(true)
     .setMinimumVersion("TLSv1.2")
     .setMaximumVersion("TLSv1.3")
@@ -218,6 +236,10 @@ Certificate, key, CA, and protocol validation occurs before the listener is
 bound. Applications provide production files. Tests generate temporary
 certificates at runtime with OpenSSL; the repository contains no certificate
 or key material.
+
+TLS 1.2 with RSA or EC keys is the Java 8 baseline. TLS 1.3 and Ed25519/Ed448
+support depend on the selected JVM/security provider; startup fails clearly
+when the configured protocol range or key algorithm is unavailable.
 
 One process can bind a given host/port only once. The embedded endpoint does
 not coordinate multiple JVMs or processes; use distinct ports or an external
@@ -346,19 +368,26 @@ The stack exposes:
 
 ## Build and test
 
-The project requires Java 21.
+The project requires Java 8.
 
 ```bash
 mvn verify
 ```
 
-Integration tests are tagged and disabled by default:
+Applicable integration tests are tagged and disabled by default:
 
 ```bash
 mvn -Pintegration-tests verify
 ```
 
-They use `AEROSPIKE_HOST`, `AEROSPIKE_PORT`, `AEROSPIKE_NAMESPACE`,
+The client-backed integration tests are temporarily excluded from test
+compilation because `aerospike-client-jdk8:10.5.0` does not yet contain the
+snapshot/exporter contract or custom `MetricsPolicy` hooks. Independent
+Prometheus HTTP, lifecycle, conversion, TLS, and mTLS integration tests remain
+active.
+
+Once restored, the client-backed tests use `AEROSPIKE_HOST`,
+`AEROSPIKE_PORT`, `AEROSPIKE_NAMESPACE`,
 `AEROSPIKE_USER`, `AEROSPIKE_PASSWORD`, `AEROSPIKE_AUTH_MODE`, and
 `AEROSPIKE_TLS_ENABLED`. Most tests expect that Aerospike server to be
 available. Docker is also required for the isolated server-loss test and the

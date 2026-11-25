@@ -5,6 +5,9 @@
  */
 package com.aerospike.client.metrics.exporter.common;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +34,8 @@ public final class SnapshotAttributes {
     public static final String LATENCY_UNIT = "latency_unit";
     public static final String BUCKET_BOUND = "le";
 
-    private static final Set<String> EXPORTER_OWNED = Set.of(
+    private static final Set<String> EXPORTER_OWNED =
+        Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
         CLUSTER,
         "cluster_name",
         CLIENT_TYPE,
@@ -50,7 +54,7 @@ public final class SnapshotAttributes {
         LATENCY_TYPE,
         LATENCY_UNIT,
         BUCKET_BOUND
-    );
+    )));
 
     private SnapshotAttributes() {
     }

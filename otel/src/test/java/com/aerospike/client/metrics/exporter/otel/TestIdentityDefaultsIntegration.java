@@ -62,7 +62,7 @@ class TestIdentityDefaultsIntegration {
             );
             assertEquals("java", defaultSnapshot.clientType);
             assertNotNull(defaultSnapshot.clusterName);
-            assertFalse(defaultSnapshot.clientVersion.isBlank());
+            assertFalse(defaultSnapshot.clientVersion.trim().isEmpty());
             assertEquals("defaults", defaultSnapshot.labels.get("client_id"));
         }
         finally {

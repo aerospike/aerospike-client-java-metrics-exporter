@@ -20,7 +20,12 @@
     </dependency>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-jdk21</artifactId>
+      <artifactId>aerospike-client-jdk8</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.aerospike</groupId>
+      <artifactId>aerospike-client-metrics-jdk8-contract-stub</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -64,6 +69,28 @@
 
   <build>
     <plugins>
+      <!--
+        TODO(OM-386): Remove these test exclusions when client-jdk8 provides
+        the snapshot/exporter contract and custom MetricsPolicy integration.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <testExcludes>
+            <testExclude>**/TestAerospikeIntegrationSupport.java</testExclude>
+            <testExclude>**/TestAsyncMetricsIntegration.java</testExclude>
+            <testExclude>**/TestExporterLifecycleIntegration.java</testExclude>
+            <testExclude>**/TestIdentityDefaultsIntegration.java</testExclude>
+            <testExclude>**/TestLiveMetricValuesIntegration.java</testExclude>
+            <testExclude>**/TestMultipleClientsIntegration.java</testExclude>
+            <testExclude>**/TestOpenTelemetryMetricsExporterIntegration.java</testExclude>
+            <testExclude>**/TestOperationalGatingIntegration.java</testExclude>
+            <testExclude>**/TestOtlpCollectorIntegration.java</testExclude>
+            <testExclude>**/TestServerDownIntegration.java</testExclude>
+          </testExcludes>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>

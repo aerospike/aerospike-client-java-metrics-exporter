@@ -8,7 +8,10 @@ package com.aerospike.client.metrics.exporter.common;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -56,30 +59,38 @@ class TestSnapshotMetricMapper {
         assertEquals(
             "test",
             recorder.points(MetricCatalog.NAMESPACE_ERRORS.name())
-                .getFirst().attributes().get(SnapshotAttributes.NAMESPACE)
+                .get(0).attributes().get(SnapshotAttributes.NAMESPACE)
         );
     }
 
     @Test
     void activeNodesWinOverDuplicateDepartedNodes() {
         assertEquals(
-            List.of("N1", "N1"),
-            nodeNames(TestMetricSnapshots.withNodeNames(List.of("N1"), List.of()))
-        );
-        assertEquals(
-            List.of("D1", "D1"),
-            nodeNames(TestMetricSnapshots.withNodeNames(List.of(), List.of("D1")))
-        );
-        assertEquals(
-            List.of("N1", "N1"),
+            Arrays.asList("N1", "N1"),
             nodeNames(TestMetricSnapshots.withNodeNames(
-                List.of("N1"), List.of("N1")
+                Collections.singletonList("N1"),
+                Collections.<String>emptyList()
             ))
         );
         assertEquals(
-            List.of("N1", "N1", "N2", "N2", "D1", "D1"),
+            Arrays.asList("D1", "D1"),
             nodeNames(TestMetricSnapshots.withNodeNames(
-                List.of("N1", "N2"), List.of("N1", "D1")
+                Collections.<String>emptyList(),
+                Collections.singletonList("D1")
+            ))
+        );
+        assertEquals(
+            Arrays.asList("N1", "N1"),
+            nodeNames(TestMetricSnapshots.withNodeNames(
+                Collections.singletonList("N1"),
+                Collections.singletonList("N1")
+            ))
+        );
+        assertEquals(
+            Arrays.asList("N1", "N1", "N2", "N2", "D1", "D1"),
+            nodeNames(TestMetricSnapshots.withNodeNames(
+                Arrays.asList("N1", "N2"),
+                Arrays.asList("N1", "D1")
             ))
         );
     }
@@ -97,14 +108,14 @@ class TestSnapshotMetricMapper {
                 .filter(point -> "read".equals(
                     point.attributes().get(SnapshotAttributes.LATENCY_TYPE)
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
-        assertEquals(List.of(1L, 3L, 6L, 10L), readBuckets.stream()
+        assertEquals(Arrays.asList(1L, 3L, 6L, 10L), readBuckets.stream()
             .map(point -> point.value().longValue())
-            .toList());
-        assertEquals(List.of("1", "2", "4", "+Inf"), readBuckets.stream()
+            .collect(Collectors.toList()));
+        assertEquals(Arrays.asList("1", "2", "4", "+Inf"), readBuckets.stream()
             .map(point -> point.attributes().get(SnapshotAttributes.BUCKET_BOUND))
-            .toList());
+            .collect(Collectors.toList()));
 
         TestMetricRecorder namespaces =
             record(MetricCatalog.NAMESPACE_LATENCY_BUCKET, true, true);
@@ -126,9 +137,9 @@ class TestSnapshotMetricMapper {
                 point.attributes().get(SnapshotAttributes.LATENCY_TYPE)
             ))
             .map(point -> point.attributes().get(SnapshotAttributes.BUCKET_BOUND))
-            .toList();
+            .collect(Collectors.toList());
 
-        assertEquals(List.of("1", "8", "64", "+Inf"), bounds);
+        assertEquals(Arrays.asList("1", "8", "64", "+Inf"), bounds);
     }
 
     private long value(
@@ -137,7 +148,7 @@ class TestSnapshotMetricMapper {
             boolean usage
     ) {
         return record(descriptor, operational, usage)
-            .points(descriptor.name()).getFirst().value().longValue();
+            .points(descriptor.name()).get(0).value().longValue();
     }
 
     private TestMetricRecorder record(
@@ -158,7 +169,7 @@ class TestSnapshotMetricMapper {
         TestMetricRecorder recorder = new TestMetricRecorder();
         mapper.record(
             descriptor,
-            List.of(snapshot),
+            Collections.singletonList(snapshot),
             recorder
         );
         return recorder;
@@ -170,6 +181,6 @@ class TestSnapshotMetricMapper {
         return record(MetricCatalog.CONNECTIONS_OPENED, snapshot)
             .points(MetricCatalog.CONNECTIONS_OPENED.name()).stream()
             .map(point -> point.attributes().get(SnapshotAttributes.NODE))
-            .toList();
+            .collect(Collectors.toList());
     }
 }

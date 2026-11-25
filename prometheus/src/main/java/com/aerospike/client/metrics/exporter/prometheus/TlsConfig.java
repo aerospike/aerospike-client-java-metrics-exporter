@@ -7,6 +7,8 @@ package com.aerospike.client.metrics.exporter.prometheus;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -20,12 +22,8 @@ public final class TlsConfig {
     public static final String DEFAULT_MINIMUM_VERSION = "TLSv1.2";
     public static final String DEFAULT_MAXIMUM_VERSION = "TLSv1.3";
 
-    private static final Map<String, Integer> VERSION_ORDER = Map.of(
-        "TLSv1", 10,
-        "TLSv1.1", 11,
-        "TLSv1.2", 12,
-        "TLSv1.3", 13
-    );
+    private static final Map<String, Integer> VERSION_ORDER =
+        versionOrder();
 
     private final Path certificatePath;
     private final Path privateKeyPath;
@@ -114,6 +112,15 @@ public final class TlsConfig {
                 description + " is not a readable file: " + path
             );
         }
+    }
+
+    private static Map<String, Integer> versionOrder() {
+        Map<String, Integer> versions = new LinkedHashMap<String, Integer>();
+        versions.put("TLSv1", 10);
+        versions.put("TLSv1.1", 11);
+        versions.put("TLSv1.2", 12);
+        versions.put("TLSv1.3", 13);
+        return Collections.unmodifiableMap(versions);
     }
 
     public static final class Builder {

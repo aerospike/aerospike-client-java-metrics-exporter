@@ -6,8 +6,12 @@
 package com.aerospike.client.metrics.exporter.common;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.aerospike.client.metrics.ConnectionMetricsSnapshot;
 import com.aerospike.client.metrics.EventLoopMetricsSnapshot;
@@ -51,12 +55,12 @@ final class TestMetricSnapshots {
         NodeMetricsSnapshot active = new NodeMetricsSnapshot(
             "N1", "127.0.0.1", 3000, sync, async, 7,
             latency(LatencyType.CONN, 2, 1, 0, 1),
-            2, 1, 1, List.of(namespace, blankNamespace)
+            2, 1, 1, Arrays.asList(namespace, blankNamespace)
         );
         NodeMetricsSnapshot departed = new NodeMetricsSnapshot(
             "D1", "127.0.0.2", 3000, sync, async, 7,
             latency(LatencyType.CONN, 1, 0, 0, 0),
-            1, 0, 0, List.of()
+            1, 0, 0, Collections.<NamespaceMetricsSnapshot>emptyList()
         );
         return new MetricsSnapshot(
             Instant.now(),
@@ -67,7 +71,7 @@ final class TestMetricSnapshots {
             "java",
             "10.4.0",
             "orders",
-            Map.of("client_id", "primary", "team", "payments"),
+            labels(),
             3,
             1,
             8,
@@ -87,12 +91,12 @@ final class TestMetricSnapshots {
             3,
             2,
             1,
-            List.of(
+            Arrays.asList(
                 new EventLoopMetricsSnapshot(2, 3),
                 new EventLoopMetricsSnapshot(5, 7)
             ),
-            List.of(active),
-            List.of(departed),
+            Collections.singletonList(active),
+            Collections.singletonList(departed),
             new UsageMetricsSnapshot(11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
             LatencyUnit.MILLISECONDS,
             4,
@@ -107,8 +111,10 @@ final class TestMetricSnapshots {
         MetricsSnapshot base = create(true, true, true);
         return withNodes(
             base,
-            activeNames.stream().map(TestMetricSnapshots::node).toList(),
-            departedNames.stream().map(TestMetricSnapshots::node).toList()
+            activeNames.stream().map(TestMetricSnapshots::node)
+                .collect(Collectors.toList()),
+            departedNames.stream().map(TestMetricSnapshots::node)
+                .collect(Collectors.toList())
         );
     }
 
@@ -116,9 +122,13 @@ final class TestMetricSnapshots {
         MetricsSnapshot base = create(true, true, true);
         List<NamespaceMetricsSnapshot> namespaces = java.util.Arrays.stream(names)
             .map(TestMetricSnapshots::namespace)
-            .toList();
+            .collect(Collectors.toList());
         NodeMetricsSnapshot active = node("N1", namespaces);
-        return withNodes(base, List.of(active), List.of());
+        return withNodes(
+            base,
+            Collections.singletonList(active),
+            Collections.<NodeMetricsSnapshot>emptyList()
+        );
     }
 
     static MetricsSnapshot withLatencyShift(int shift) {
@@ -180,7 +190,7 @@ final class TestMetricSnapshots {
     }
 
     private static NodeMetricsSnapshot node(String name) {
-        return node(name, List.of());
+        return node(name, Collections.<NamespaceMetricsSnapshot>emptyList());
     }
 
     private static NodeMetricsSnapshot node(
@@ -217,5 +227,12 @@ final class TestMetricSnapshots {
             count += bucket;
         }
         return new LatencySnapshot(type, buckets, null, null, null, count);
+    }
+
+    private static Map<String, String> labels() {
+        Map<String, String> labels = new LinkedHashMap<String, String>();
+        labels.put("client_id", "primary");
+        labels.put("team", "payments");
+        return labels;
     }
 }

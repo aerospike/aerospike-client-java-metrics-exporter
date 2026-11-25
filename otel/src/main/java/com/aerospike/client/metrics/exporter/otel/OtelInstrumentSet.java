@@ -75,10 +75,16 @@ final class OtelInstrumentSet implements AutoCloseable {
             ClientSnapshotRegistry snapshots,
             SnapshotMetricMapper mapper
     ) {
-        return switch (descriptor.valueType()) {
-            case LONG -> registerLong(meter, descriptor, snapshots, mapper);
-            case DOUBLE -> registerDouble(meter, descriptor, snapshots, mapper);
-        };
+        switch (descriptor.valueType()) {
+            case LONG:
+                return registerLong(meter, descriptor, snapshots, mapper);
+            case DOUBLE:
+                return registerDouble(meter, descriptor, snapshots, mapper);
+            default:
+                throw new IllegalArgumentException(
+                    "Unsupported metric value type: " + descriptor.valueType()
+                );
+        }
     }
 
     private static AutoCloseable registerLong(
@@ -87,25 +93,32 @@ final class OtelInstrumentSet implements AutoCloseable {
             ClientSnapshotRegistry snapshots,
             SnapshotMetricMapper mapper
     ) {
-        return switch (descriptor.type()) {
-            case GAUGE -> meter.gaugeBuilder(descriptor.name())
-                .ofLongs()
-                .setDescription(descriptor.description())
-                .setUnit(descriptor.unit())
-                .buildWithCallback(measurement -> mapper.record(
-                    descriptor,
-                    snapshots.currentSnapshots(),
-                    new OtelMetricRecorder(descriptor, measurement)
-                ));
-            case COUNTER, CUMULATIVE_BUCKETS -> meter.counterBuilder(descriptor.name())
-                .setDescription(descriptor.description())
-                .setUnit(descriptor.unit())
-                .buildWithCallback(measurement -> mapper.record(
-                    descriptor,
-                    snapshots.currentSnapshots(),
-                    new OtelMetricRecorder(descriptor, measurement)
-                ));
-        };
+        switch (descriptor.type()) {
+            case GAUGE:
+                return meter.gaugeBuilder(descriptor.name())
+                    .ofLongs()
+                    .setDescription(descriptor.description())
+                    .setUnit(descriptor.unit())
+                    .buildWithCallback(measurement -> mapper.record(
+                        descriptor,
+                        snapshots.currentSnapshots(),
+                        new OtelMetricRecorder(descriptor, measurement)
+                    ));
+            case COUNTER:
+            case CUMULATIVE_BUCKETS:
+                return meter.counterBuilder(descriptor.name())
+                    .setDescription(descriptor.description())
+                    .setUnit(descriptor.unit())
+                    .buildWithCallback(measurement -> mapper.record(
+                        descriptor,
+                        snapshots.currentSnapshots(),
+                        new OtelMetricRecorder(descriptor, measurement)
+                    ));
+            default:
+                throw new IllegalArgumentException(
+                    "Unsupported metric type: " + descriptor.type()
+                );
+        }
     }
 
     private static AutoCloseable registerDouble(
@@ -114,27 +127,35 @@ final class OtelInstrumentSet implements AutoCloseable {
             ClientSnapshotRegistry snapshots,
             SnapshotMetricMapper mapper
     ) {
-        return switch (descriptor.type()) {
-            case GAUGE -> meter.gaugeBuilder(descriptor.name())
-                .setDescription(descriptor.description())
-                .setUnit(descriptor.unit())
-                .buildWithCallback(measurement -> mapper.record(
-                    descriptor,
-                    snapshots.currentSnapshots(),
-                    new OtelMetricRecorder(descriptor, measurement)
-                ));
-            case COUNTER -> meter.counterBuilder(descriptor.name())
-                .ofDoubles()
-                .setDescription(descriptor.description())
-                .setUnit(descriptor.unit())
-                .buildWithCallback(measurement -> mapper.record(
-                    descriptor,
-                    snapshots.currentSnapshots(),
-                    new OtelMetricRecorder(descriptor, measurement)
-                ));
-            case CUMULATIVE_BUCKETS -> throw new IllegalStateException(
-                "Cumulative buckets must use long values: " + descriptor.name()
-            );
-        };
+        switch (descriptor.type()) {
+            case GAUGE:
+                return meter.gaugeBuilder(descriptor.name())
+                    .setDescription(descriptor.description())
+                    .setUnit(descriptor.unit())
+                    .buildWithCallback(measurement -> mapper.record(
+                        descriptor,
+                        snapshots.currentSnapshots(),
+                        new OtelMetricRecorder(descriptor, measurement)
+                    ));
+            case COUNTER:
+                return meter.counterBuilder(descriptor.name())
+                    .ofDoubles()
+                    .setDescription(descriptor.description())
+                    .setUnit(descriptor.unit())
+                    .buildWithCallback(measurement -> mapper.record(
+                        descriptor,
+                        snapshots.currentSnapshots(),
+                        new OtelMetricRecorder(descriptor, measurement)
+                    ));
+            case CUMULATIVE_BUCKETS:
+                throw new IllegalStateException(
+                    "Cumulative buckets must use long values: "
+                        + descriptor.name()
+                );
+            default:
+                throw new IllegalArgumentException(
+                    "Unsupported metric type: " + descriptor.type()
+                );
+        }
     }
 }

@@ -10,7 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,28 +30,28 @@ import com.aerospike.client.metrics.UsageMetricsSnapshot;
 class TestSnapshotAttributesAndCatalog {
     @Test
     void buildsScopeSpecificAttributes() {
-        MetricsSnapshot snapshot = snapshot(Map.ofEntries(
-            Map.entry("client_id", "primary"),
-            Map.entry("cluster", "customer-cluster"),
-            Map.entry("cluster_name", "customer-cluster-name"),
-            Map.entry("client_type", "customer-type"),
-            Map.entry("client_version", "customer-version"),
-            Map.entry("app_id", "customer-app"),
-            Map.entry("client_app_ip", "203.0.113.10"),
-            Map.entry("team", "payments"),
-            Map.entry("feature", "customer-feature"),
-            Map.entry("node", "customer-node"),
-            Map.entry("node_address", "customer-address"),
-            Map.entry("node_port", "1"),
-            Map.entry("server_node_id", "customer-server-node"),
-            Map.entry("server_node_address", "customer-server-address"),
-            Map.entry("server_node_port", "2"),
-            Map.entry("conn_type", "customer-connection"),
-            Map.entry("namespace", "customer-namespace"),
-            Map.entry("ns", "customer-ns"),
-            Map.entry("latency_type", "customer-latency"),
-            Map.entry("latency_unit", "customer-unit"),
-            Map.entry("le", "customer-bound")
+        MetricsSnapshot snapshot = snapshot(map(
+            "client_id", "primary",
+            "cluster", "customer-cluster",
+            "cluster_name", "customer-cluster-name",
+            "client_type", "customer-type",
+            "client_version", "customer-version",
+            "app_id", "customer-app",
+            "client_app_ip", "203.0.113.10",
+            "team", "payments",
+            "feature", "customer-feature",
+            "node", "customer-node",
+            "node_address", "customer-address",
+            "node_port", "1",
+            "server_node_id", "customer-server-node",
+            "server_node_address", "customer-server-address",
+            "server_node_port", "2",
+            "conn_type", "customer-connection",
+            "namespace", "customer-namespace",
+            "ns", "customer-ns",
+            "latency_type", "customer-latency",
+            "latency_unit", "customer-unit",
+            "le", "customer-bound"
         ));
         ConnectionMetricsSnapshot connections =
             new ConnectionMetricsSnapshot(1, 2, 3, 4);
@@ -93,14 +96,14 @@ class TestSnapshotAttributesAndCatalog {
     @Test
     void absentExporterIdentityDoesNotRestoreCustomerCollision() {
         MetricsSnapshot snapshot = snapshot(
-            Map.ofEntries(
-                Map.entry("client_id", "primary"),
-                Map.entry("cluster", "customer-cluster"),
-                Map.entry("client_type", "customer-type"),
-                Map.entry("client_version", "customer-version"),
-                Map.entry("app_id", "customer-app"),
-                Map.entry("server_node_id", "customer-node"),
-                Map.entry("ns", "customer-namespace")
+            map(
+                "client_id", "primary",
+                "cluster", "customer-cluster",
+                "client_type", "customer-type",
+                "client_version", "customer-version",
+                "app_id", "customer-app",
+                "server_node_id", "customer-node",
+                "ns", "customer-namespace"
             ),
             "",
             "",
@@ -176,7 +179,7 @@ class TestSnapshotAttributesAndCatalog {
                 + "[a-z][a-z0-9_.]*"
         )));
 
-        Set<String> supportedUnits = Set.of(
+        Set<String> supportedUnits = new HashSet<String>(Arrays.asList(
             "{command}",
             "{connection}",
             "{error}",
@@ -187,7 +190,7 @@ class TestSnapshotAttributesAndCatalog {
             "{timeout}",
             "%",
             "By"
-        );
+        ));
         assertTrue(MetricCatalog.all().stream()
             .allMatch(descriptor -> supportedUnits.contains(descriptor.unit())));
 
@@ -227,5 +230,13 @@ class TestSnapshotAttributesAndCatalog {
             new UsageMetricsSnapshot(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
             LatencyUnit.MILLISECONDS, 7, 1
         );
+    }
+
+    private static Map<String, String> map(String... values) {
+        Map<String, String> result = new LinkedHashMap<String, String>();
+        for (int index = 0; index < values.length; index += 2) {
+            result.put(values[index], values[index + 1]);
+        }
+        return result;
     }
 }

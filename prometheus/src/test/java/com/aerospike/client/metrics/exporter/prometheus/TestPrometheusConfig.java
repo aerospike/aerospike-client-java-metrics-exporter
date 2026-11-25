@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -56,13 +57,13 @@ class TestPrometheusConfig {
                 .setPrivateKeyPath(missingKey)
                 .build()
         );
-        Path certificate = Files.writeString(
+        Path certificate = Files.write(
             temporaryDirectory.resolve("server.crt"),
-            "test"
+            "test".getBytes(StandardCharsets.UTF_8)
         );
-        Path key = Files.writeString(
+        Path key = Files.write(
             temporaryDirectory.resolve("server.key"),
-            "test"
+            "test".getBytes(StandardCharsets.UTF_8)
         );
         IllegalArgumentException mtlsFailure = assertThrows(
             IllegalArgumentException.class,
@@ -77,13 +78,13 @@ class TestPrometheusConfig {
 
     @Test
     void rejectsInvalidTlsVersionRanges() throws Exception {
-        Path certificate = Files.writeString(
+        Path certificate = Files.write(
             temporaryDirectory.resolve("version-server.crt"),
-            "test"
+            "test".getBytes(StandardCharsets.UTF_8)
         );
-        Path key = Files.writeString(
+        Path key = Files.write(
             temporaryDirectory.resolve("version-server.key"),
-            "test"
+            "test".getBytes(StandardCharsets.UTF_8)
         );
         assertThrows(
             IllegalArgumentException.class,

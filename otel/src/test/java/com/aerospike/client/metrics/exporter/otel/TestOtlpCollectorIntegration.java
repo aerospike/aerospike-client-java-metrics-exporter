@@ -7,11 +7,13 @@ package com.aerospike.client.metrics.exporter.otel;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Tag;
@@ -166,19 +168,13 @@ class TestOtlpCollectorIntegration {
     }
 
     private static String awaitScrape(String... clientIds) throws Exception {
-        URI endpoint = URI.create(
+        String endpoint =
             "http://" + COLLECTOR.getHost() + ":"
-                + COLLECTOR.getMappedPort(PROMETHEUS_PORT) + "/metrics"
-        );
-        HttpClient client = HttpClient.newHttpClient();
+                + COLLECTOR.getMappedPort(PROMETHEUS_PORT) + "/metrics";
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
         String latest = "";
         while (System.nanoTime() < deadline) {
-            HttpResponse<String> response = client.send(
-                HttpRequest.newBuilder(endpoint).GET().build(),
-                HttpResponse.BodyHandlers.ofString()
-            );
-            String body = response.body();
+            String body = get(endpoint);
             latest = body;
             boolean allClientsPresent = java.util.Arrays.stream(clientIds)
                 .allMatch(clientId -> body.contains(
@@ -202,7 +198,7 @@ class TestOtlpCollectorIntegration {
             String clientId,
             String... expectedFragments
     ) {
-        boolean found = scrape.lines()
+        boolean found = Arrays.stream(scrape.split("\\R"))
             .filter(line -> line.startsWith(metricName))
             .filter(line -> line.contains("client_id=\"" + clientId + "\""))
             .anyMatch(line -> java.util.Arrays.stream(expectedFragments)
@@ -211,5 +207,24 @@ class TestOtlpCollectorIntegration {
             found,
             () -> "Missing " + metricName + " line for " + clientId
         );
+    }
+
+    private static String get(String endpoint) throws Exception {
+        HttpURLConnection connection =
+            (HttpURLConnection) new URL(endpoint).openConnection();
+        connection.setConnectTimeout(2_000);
+        connection.setReadTimeout(5_000);
+        try (InputStream input = connection.getInputStream();
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4_096];
+            int count;
+            while ((count = input.read(buffer)) >= 0) {
+                output.write(buffer, 0, count);
+            }
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
+        }
+        finally {
+            connection.disconnect();
+        }
     }
 }

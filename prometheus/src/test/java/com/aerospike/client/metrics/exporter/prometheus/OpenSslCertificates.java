@@ -5,7 +5,9 @@
  */
 package com.aerospike.client.metrics.exporter.prometheus;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -155,7 +157,7 @@ final class OpenSslCertificates {
             );
         }
         String output = new String(
-            process.getInputStream().readAllBytes(),
+            readAll(process.getInputStream()),
             StandardCharsets.UTF_8
         );
         if (process.exitValue() != 0) {
@@ -168,6 +170,16 @@ final class OpenSslCertificates {
                     + output
             );
         }
+    }
+
+    private static byte[] readAll(InputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[4_096];
+        int count;
+        while ((count = input.read(buffer)) >= 0) {
+            output.write(buffer, 0, count);
+        }
+        return output.toByteArray();
     }
 
     static final class Material {

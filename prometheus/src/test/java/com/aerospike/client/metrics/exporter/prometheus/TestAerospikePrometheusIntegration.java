@@ -12,13 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -55,13 +52,10 @@ class TestAerospikePrometheusIntegration {
             exporter.export(snapshot("primary", 42));
             reader.startHttpServer();
 
-            HttpResponse<String> response = HttpClient.newHttpClient().send(
-                HttpRequest.newBuilder(URI.create(
-                    "http://127.0.0.1:"
-                        + reader.getHttpServerPort()
-                        + "/metrics"
-                )).GET().build(),
-                HttpResponse.BodyHandlers.ofString()
+            HttpTestClient.Response response = HttpTestClient.get(
+                "http://127.0.0.1:"
+                    + reader.getHttpServerPort()
+                    + "/metrics"
             );
             assertEquals(200, response.statusCode());
             assertTrue(response.body().contains(
@@ -231,7 +225,7 @@ class TestAerospikePrometheusIntegration {
             "java",
             "10.4.0",
             "integration-test",
-            Map.of("client_id", clientId),
+            Collections.singletonMap("client_id", clientId),
             1,
             0,
             0,
@@ -284,7 +278,7 @@ class TestAerospikePrometheusIntegration {
                     + metrics.stream()
                         .map(metric -> metric.getMetadata().getName())
                         .sorted()
-                        .toList()
+                        .collect(Collectors.toList())
             ));
     }
 }

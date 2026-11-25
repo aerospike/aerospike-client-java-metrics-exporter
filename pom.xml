@@ -13,17 +13,18 @@
   <description>Optional OpenTelemetry and Prometheus exporters for Aerospike Java client metrics.</description>
 
   <modules>
+    <module>build-support/client-contract-jdk8-stub</module>
     <module>common</module>
     <module>otel</module>
     <module>prometheus</module>
-    <module>examples</module>
   </modules>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>21</maven.compiler.release>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
 
-    <aerospike.client.version>10.4.0</aerospike.client.version>
+    <aerospike.client.version>10.5.0</aerospike.client.version>
     <opentelemetry.version>1.62.0</opentelemetry.version>
     <opentelemetry.prometheus.alpha.version>1.62.0-alpha</opentelemetry.prometheus.alpha.version>
     <prometheus.version>1.10.0</prometheus.version>
@@ -35,14 +36,21 @@
     <maven.failsafe.version>3.5.3</maven.failsafe.version>
     <maven.surefire.version>3.5.3</maven.surefire.version>
     <skipITs>true</skipITs>
+    <!-- TODO(OM-386): Remove only after deleting the temporary contract stub. -->
+    <maven.deploy.skip>true</maven.deploy.skip>
   </properties>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>com.aerospike</groupId>
-        <artifactId>aerospike-client-jdk21</artifactId>
+        <artifactId>aerospike-client-jdk8</artifactId>
         <version>${aerospike.client.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.aerospike</groupId>
+        <artifactId>aerospike-client-metrics-jdk8-contract-stub</artifactId>
+        <version>${project.version}</version>
       </dependency>
 
       <dependency>
@@ -85,7 +93,8 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven.compiler.version}</version>
           <configuration>
-            <release>${maven.compiler.release}</release>
+            <source>${maven.compiler.source}</source>
+            <target>${maven.compiler.target}</target>
           </configuration>
         </plugin>
         <plugin>
@@ -123,6 +132,16 @@
   </build>
 
   <profiles>
+    <!--
+      TODO(OM-386): Re-enable this module by default after client-jdk8 owns
+      MetricsSnapshot, IMetricsExporter and the custom MetricsPolicy hooks.
+    -->
+    <profile>
+      <id>future-jdk8-client-contract</id>
+      <modules>
+        <module>examples</module>
+      </modules>
+    </profile>
     <profile>
       <id>integration-tests</id>
       <properties>

@@ -8,7 +8,7 @@ package com.aerospike.client.metrics.exporter.otel;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
-import java.util.Map;
+import java.util.Collections;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -38,7 +38,10 @@ class TestOpenTelemetryMetricsExporterIntegration {
             policy.exporter = MetricsExporterType.CUSTOM;
             policy.exportInterval = Duration.ofMillis(250);
             policy.enableOperationalMetrics = true;
-            policy.labels = Map.of("client_id", "integration");
+            policy.labels = Collections.singletonMap(
+                "client_id",
+                "integration"
+            );
             policy.addExporter(exporter);
             client.enableMetrics(policy);
 

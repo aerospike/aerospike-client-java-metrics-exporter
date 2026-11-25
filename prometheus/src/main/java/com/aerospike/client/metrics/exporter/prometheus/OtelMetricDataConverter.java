@@ -11,6 +11,7 @@ import static io.prometheus.metrics.model.snapshots.PrometheusNaming.sanitizeMet
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -294,7 +295,7 @@ final class OtelMetricDataConverter {
     private InfoSnapshot targetInfo(Resource resource) {
         return new InfoSnapshot(
             new MetricMetadata("target"),
-            List.of(new InfoDataPointSnapshot(
+            Collections.singletonList(new InfoDataPointSnapshot(
                 labels(null, null, resource.getAttributes())
             ))
         );

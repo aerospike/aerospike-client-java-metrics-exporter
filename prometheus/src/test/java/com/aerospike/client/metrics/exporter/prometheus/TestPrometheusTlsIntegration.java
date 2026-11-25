@@ -12,16 +12,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
-import java.time.Duration;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.KeyManager;
@@ -64,7 +60,7 @@ class TestPrometheusTlsIntegration {
                 .counterBuilder("secure.requests")
                 .build()
                 .add(2);
-            HttpResponse<String> response = request(
+            HttpTestClient.Response response = request(
                 running.endpoint(),
                 sslContext(false)
             );
@@ -117,8 +113,14 @@ class TestPrometheusTlsIntegration {
         Path invalidCertificate =
             temporaryDirectory.resolve("invalid-certificate.pem");
         Path invalidKey = temporaryDirectory.resolve("invalid-private.key");
-        Files.writeString(invalidCertificate, "not a certificate");
-        Files.writeString(invalidKey, "not a private key");
+        Files.write(
+            invalidCertificate,
+            "not a certificate".getBytes(StandardCharsets.UTF_8)
+        );
+        Files.write(
+            invalidKey,
+            "not a private key".getBytes(StandardCharsets.UTF_8)
+        );
 
         assertStartRejected(
             TlsConfig.builder()
@@ -188,22 +190,11 @@ class TestPrometheusTlsIntegration {
         }
     }
 
-    private static HttpResponse<String> request(
+    private static HttpTestClient.Response request(
             String endpoint,
             SSLContext sslContext
     ) throws IOException, InterruptedException {
-        HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(2))
-            .sslContext(sslContext)
-            .build();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
-            .timeout(Duration.ofSeconds(5))
-            .GET()
-            .build();
-        return client.send(
-            request,
-            HttpResponse.BodyHandlers.ofString()
-        );
+        return HttpTestClient.get(endpoint, sslContext);
     }
 
     private static SSLContext sslContext(boolean includeClientCertificate)

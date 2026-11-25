@@ -6,6 +6,7 @@
 package com.aerospike.client.metrics.exporter.otel;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
@@ -21,7 +22,7 @@ final class TestOtelIntegrationSupport {
             Predicate<Collection<MetricData>> predicate
     ) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        Collection<MetricData> latest = java.util.List.of();
+        Collection<MetricData> latest = Collections.emptyList();
         while (System.nanoTime() < deadline) {
             latest = reader.collectAllMetrics();
             if (predicate.test(latest)) {

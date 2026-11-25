@@ -6,6 +6,7 @@
 package com.aerospike.client.metrics.exporter.otel;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -26,7 +27,14 @@ final class TestSnapshots {
     }
 
     static MetricsSnapshot complete() {
-        return create("primary", true, true, true, 99L, List.of());
+        return create(
+            "primary",
+            true,
+            true,
+            true,
+            99L,
+            Collections.<NodeMetricsSnapshot>emptyList()
+        );
     }
 
     static MetricsSnapshot disabled() {
@@ -34,19 +42,47 @@ final class TestSnapshots {
     }
 
     static MetricsSnapshot disabled(long commandCount) {
-        return create("primary", false, true, true, commandCount, List.of());
+        return create(
+            "primary",
+            false,
+            true,
+            true,
+            commandCount,
+            Collections.<NodeMetricsSnapshot>emptyList()
+        );
     }
 
     static MetricsSnapshot forClient(String clientId, long commandCount) {
-        return create(clientId, true, true, true, commandCount, List.of());
+        return create(
+            clientId,
+            true,
+            true,
+            true,
+            commandCount,
+            Collections.<NodeMetricsSnapshot>emptyList()
+        );
     }
 
     static MetricsSnapshot withGates(boolean operational, boolean usage) {
-        return create("primary", true, operational, usage, 99L, List.of());
+        return create(
+            "primary",
+            true,
+            operational,
+            usage,
+            99L,
+            Collections.<NodeMetricsSnapshot>emptyList()
+        );
     }
 
     static MetricsSnapshot withDepartedNode() {
-        return create("primary", true, true, true, 99L, List.of(node("D1")));
+        return create(
+            "primary",
+            true,
+            true,
+            true,
+            99L,
+            Collections.singletonList(node("D1"))
+        );
     }
 
     static MetricsSnapshot updated() {
@@ -56,7 +92,7 @@ final class TestSnapshots {
             true,
             true,
             109L,
-            List.of(),
+            Collections.<NodeMetricsSnapshot>emptyList(),
             labels("primary"),
             2L,
             eventLoops()
@@ -86,7 +122,9 @@ final class TestSnapshots {
         labels.put("latency_unit", "customer-unit");
         labels.put("le", "customer-bound");
         return create(
-            "primary", true, true, true, 99L, List.of(), labels, 1L, eventLoops()
+            "primary", true, true, true, 99L,
+            Collections.<NodeMetricsSnapshot>emptyList(),
+            labels, 1L, eventLoops()
         );
     }
 
@@ -97,7 +135,7 @@ final class TestSnapshots {
             true,
             true,
             99L,
-            List.of(),
+            Collections.<NodeMetricsSnapshot>emptyList(),
             labels("primary"),
             1L,
             Collections.singletonList(null)
@@ -175,7 +213,7 @@ final class TestSnapshots {
             2,
             1,
             1,
-            List.of(namespace)
+            Collections.singletonList(namespace)
         );
 
         return new MetricsSnapshot(
@@ -208,7 +246,7 @@ final class TestSnapshots {
             2,
             1,
             eventLoops,
-            List.of(node),
+            Collections.singletonList(node),
             departed,
             new UsageMetricsSnapshot(11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
             LatencyUnit.MILLISECONDS,
@@ -231,16 +269,19 @@ final class TestSnapshots {
             0,
             0,
             0,
-            List.of()
+            Collections.<NamespaceMetricsSnapshot>emptyList()
         );
     }
 
     private static Map<String, String> labels(String clientId) {
-        return Map.of("team", "payments", "client_id", clientId);
+        Map<String, String> labels = new LinkedHashMap<String, String>();
+        labels.put("team", "payments");
+        labels.put("client_id", clientId);
+        return labels;
     }
 
     private static List<EventLoopMetricsSnapshot> eventLoops() {
-        return List.of(
+        return Arrays.asList(
             new EventLoopMetricsSnapshot(2, 3),
             new EventLoopMetricsSnapshot(5, 7)
         );

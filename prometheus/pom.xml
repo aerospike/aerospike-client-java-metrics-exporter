@@ -54,7 +54,12 @@
     </dependency>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-jdk21</artifactId>
+      <artifactId>aerospike-client-jdk8</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.aerospike</groupId>
+      <artifactId>aerospike-client-metrics-jdk8-contract-stub</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

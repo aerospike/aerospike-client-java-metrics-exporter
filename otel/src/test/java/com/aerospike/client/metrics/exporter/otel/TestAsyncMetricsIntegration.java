@@ -9,7 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -69,7 +71,10 @@ class TestAsyncMetricsIntegration {
                     AttributeKey.stringKey("conn_type")
                 ))
                 .collect(Collectors.toSet());
-            assertEquals(Set.of("sync", "async"), connectionTypes);
+            assertEquals(
+                new HashSet<String>(Arrays.asList("sync", "async")),
+                connectionTypes
+            );
         }
         finally {
             if (client != null) {

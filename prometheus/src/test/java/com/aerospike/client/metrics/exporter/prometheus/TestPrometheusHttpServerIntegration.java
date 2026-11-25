@@ -13,11 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -130,7 +125,7 @@ class TestPrometheusHttpServerIntegration {
 
             provider.close();
 
-            HttpResponse<String> response = request(
+            HttpTestClient.Response response = request(
                 "http://127.0.0.1:" + server.getPort() + "/metrics"
             );
             assertEquals(200, response.statusCode());
@@ -228,18 +223,8 @@ class TestPrometheusHttpServerIntegration {
         return request(endpoint).body();
     }
 
-    private static HttpResponse<String> request(String endpoint)
+    private static HttpTestClient.Response request(String endpoint)
             throws IOException, InterruptedException {
-        HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(2))
-            .build();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
-            .timeout(Duration.ofSeconds(5))
-            .GET()
-            .build();
-        return client.send(
-            request,
-            HttpResponse.BodyHandlers.ofString()
-        );
+        return HttpTestClient.get(endpoint);
     }
 }

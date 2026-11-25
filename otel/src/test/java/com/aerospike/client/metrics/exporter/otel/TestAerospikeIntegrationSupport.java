@@ -6,6 +6,7 @@
 package com.aerospike.client.metrics.exporter.otel;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -93,7 +94,7 @@ final class TestAerospikeIntegrationSupport {
         policy.exporter = MetricsExporterType.CUSTOM;
         policy.exportInterval = Duration.ofMillis(100);
         policy.enableOperationalMetrics = operational;
-        policy.labels = java.util.Map.of("client_id", clientId);
+        policy.labels = Collections.singletonMap("client_id", clientId);
         policy.addExporter(exporter);
         return policy;
     }

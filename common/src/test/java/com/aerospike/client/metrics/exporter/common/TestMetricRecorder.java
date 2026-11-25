@@ -6,6 +6,8 @@
 package com.aerospike.client.metrics.exporter.common;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,7 +22,7 @@ final class TestMetricRecorder implements MetricRecorder {
             long value,
             Map<String, String> attributes
     ) {
-        points.add(new Point(descriptor, value, Map.copyOf(attributes)));
+        points.add(new Point(descriptor, value, immutableCopy(attributes)));
     }
 
     @Override
@@ -29,13 +31,13 @@ final class TestMetricRecorder implements MetricRecorder {
             double value,
             Map<String, String> attributes
     ) {
-        points.add(new Point(descriptor, value, Map.copyOf(attributes)));
+        points.add(new Point(descriptor, value, immutableCopy(attributes)));
     }
 
     List<Point> points(String metricName) {
         return points.stream()
             .filter(point -> metricName.equals(point.descriptor().name()))
-            .toList();
+            .collect(Collectors.toList());
     }
 
     Set<String> names() {
@@ -44,10 +46,39 @@ final class TestMetricRecorder implements MetricRecorder {
             .collect(Collectors.toSet());
     }
 
-    record Point(
-        MetricDescriptor descriptor,
-        Number value,
-        Map<String, String> attributes
+    private static Map<String, String> immutableCopy(
+            Map<String, String> attributes
     ) {
+        return Collections.unmodifiableMap(
+            new LinkedHashMap<String, String>(attributes)
+        );
+    }
+
+    static final class Point {
+        private final MetricDescriptor descriptor;
+        private final Number value;
+        private final Map<String, String> attributes;
+
+        Point(
+                MetricDescriptor descriptor,
+                Number value,
+                Map<String, String> attributes
+        ) {
+            this.descriptor = descriptor;
+            this.value = value;
+            this.attributes = attributes;
+        }
+
+        MetricDescriptor descriptor() {
+            return descriptor;
+        }
+
+        Number value() {
+            return value;
+        }
+
+        Map<String, String> attributes() {
+            return attributes;
+        }
     }
 }

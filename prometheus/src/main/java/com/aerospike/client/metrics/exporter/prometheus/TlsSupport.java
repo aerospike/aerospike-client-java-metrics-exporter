@@ -22,8 +22,12 @@ import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,12 +43,8 @@ import javax.net.ssl.TrustManagerFactory;
 final class TlsSupport {
     private static final char[] KEYSTORE_PASSWORD =
         "aerospike-prometheus".toCharArray();
-    private static final Map<String, Integer> TLS_VERSION_ORDER = Map.of(
-        "TLSv1", 10,
-        "TLSv1.1", 11,
-        "TLSv1.2", 12,
-        "TLSv1.3", 13
-    );
+    private static final Map<String, Integer> TLS_VERSION_ORDER =
+        versionOrder();
 
     private TlsSupport() {
     }
@@ -159,7 +159,10 @@ final class TlsSupport {
 
     private static PrivateKey loadPrivateKey(Path path)
             throws IOException, GeneralSecurityException {
-        String pem = Files.readString(path, StandardCharsets.US_ASCII);
+        String pem = new String(
+            Files.readAllBytes(path),
+            StandardCharsets.US_ASCII
+        );
         if (pem.contains("BEGIN ENCRYPTED PRIVATE KEY")) {
             throw new IllegalArgumentException(
                 "encrypted private keys are not supported"
@@ -187,7 +190,7 @@ final class TlsSupport {
         }
         PKCS8EncodedKeySpec specification = new PKCS8EncodedKeySpec(encoded);
         GeneralSecurityException lastFailure = null;
-        for (String algorithm : List.of(
+        for (String algorithm : Arrays.asList(
                 "RSA",
                 "EC",
                 "DSA",
@@ -357,9 +360,9 @@ final class TlsSupport {
     ) {
         int minimum = TLS_VERSION_ORDER.get(config.getMinimumVersion());
         int maximum = TLS_VERSION_ORDER.get(config.getMaximumVersion());
-        Set<String> supported = Set.of(
+        Set<String> supported = new HashSet<String>(Arrays.asList(
             context.getSupportedSSLParameters().getProtocols()
-        );
+        ));
         List<String> selected = new ArrayList<String>();
         for (Map.Entry<String, Integer> version
                 : TLS_VERSION_ORDER.entrySet()) {
@@ -375,6 +378,15 @@ final class TlsSupport {
             );
         }
         return selected.toArray(new String[0]);
+    }
+
+    private static Map<String, Integer> versionOrder() {
+        Map<String, Integer> versions = new LinkedHashMap<String, Integer>();
+        versions.put("TLSv1", 10);
+        versions.put("TLSv1.1", 11);
+        versions.put("TLSv1.2", 12);
+        versions.put("TLSv1.3", 13);
+        return Collections.unmodifiableMap(versions);
     }
 
     static final class LoadedTls {
